@@ -1,0 +1,159 @@
+# VidantaMap — Resort Path Navigation MVP
+
+A localhost web app that gives Google-Maps-style walking directions across the
+resort's own boardwalk/path network (which Google Maps cannot route on), plus an
+admin editor so staff can update locations and paths when they change.
+
+## Running
+
+```
+npm install
+npm start          # → http://localhost:3000  (guest app)
+                   # → http://localhost:3000/admin.html  (admin editor)
+```
+
+## Architecture
+
+- **Server**: Node 22 + Express (`server.js`). Serves `public/` statically and a
+  small JSON API. Graph data persisted to `data/graph.json` (file storage — MVP).
+- **Routing**: `lib/routing.js` — Dijkstra over the path graph. Two weightings:
+  - `shortest`: minimize distance (meters).
+  - `fastest`: minimize time; edge time = length / walkSpeed(pathType).
+- **Guest UI**: `public/index.html` + `public/js/app.js` + `public/css/app.css`.
+- **Admin UI**: `public/admin.html` + `public/js/admin.js` + `public/css/admin.css`.
+- **Shared map component**: `public/js/mapview.js` (pan/zoom SVG over the resort
+  map image; already written — see API below).
+
+## Data model — `data/graph.json`
+
+```jsonc
+{
+  "config": {
+    "mapImage": "/img/resort-map.png",
+    "width": 1179,            // map image px
+    "height": 1565,
+    "metersPerPixel": 0.9,    // converts px distance → meters
+    "walkSpeeds": {           // meters/second by pathType
+      "boardwalk": 1.4,
+      "paved": 1.5,
+      "trail": 1.0,
+      "stairs": 0.6
+    }
+  },
+  "nodes": [
+    // destination=true → selectable as origin/destination in guest UI
+    { "id": "grand-bliss", "name": "The Grand Bliss", "type": "hotel",
+      "x": 605, "y": 448, "destination": true },
+    // junctions are path intersections, not shown as destinations
+    { "id": "j06", "name": "", "type": "junction", "x": 525, "y": 610,
+      "destination": false }
+  ],
+  "edges": [
+    // undirected; length derived from node coords × metersPerPixel
+    { "id": "e-j06-grand-luxxe-1", "from": "j06", "to": "grand-luxxe-1",
+      "pathType": "boardwalk" }
+  ]
+}
+```
+
+Node `type` ∈ `hotel | restaurant | pool | amenity | junction` (open set; render
+unknown types like `amenity`).
+
+## API contract
+
+- `GET /api/graph` → the full graph JSON (as above).
+- `PUT /api/graph` (body = full graph JSON) → validates & atomically replaces
+  `data/graph.json`. Validation: unique non-empty node ids; every edge endpoint
+  exists; no self-loop edges; numeric coords; known-or-defaulted pathType
+  (unknown pathType falls back to `boardwalk` speed at routing time, do not
+  reject). On success `{ ok: true }`; on failure HTTP 400 `{ error: "..." }`.
+- `GET /api/route?from=<nodeId>&to=<nodeId>` → both route options:
+
+```jsonc
+{
+  "from": "grand-bliss", "to": "beach-club",
+  "routes": {
+    "shortest": { /* RouteResult */ },
+    "fastest":  { /* RouteResult */ }   // may be identical path to shortest
+  }
+}
+```
+
+`RouteResult`:
+
+```jsonc
+{
+  "nodeIds": ["grand-bliss", "j05", "..."],
+  "coords": [{ "x": 605, "y": 448 }, ...],   // same order as nodeIds
+  "distanceMeters": 412,                      // rounded
+  "timeSeconds": 300,                         // rounded
+  "steps": [                                  // turn-by-turn
+    { "text": "Head southwest on the boardwalk", "distanceMeters": 80 },
+    { "text": "Turn left", "distanceMeters": 120 },
+    { "text": "Arrive at Beach Club & Ocean Pool", "distanceMeters": 0 }
+  ]
+}
+```
+
+Steps are generated from geometry: compass bearing of the first segment
+("Head <direction>…"), then a step at each significant bearing change
+(> 35° → "Turn left/right", 20–35° → "Bear left/right"), merging straight
+segments and summing their distance, ending with "Arrive at <name>".
+Errors: unknown node id → 400; no path exists → 404 `{ error: "no-route" }`.
+
+- `GET /api/health` → `{ ok: true }`.
+
+## Shared MapView component — `public/js/mapview.js`
+
+```js
+const mv = new MapView(containerElement, config /* graph.config */);
+mv.overlay          // <g> SVG group in MAP coordinates — draw routes/markers here
+mv.svg              // the root <svg>
+mv.scale            // current zoom scale (map px → screen px multiplier)
+mv.onClick(fn)      // fn({x, y, event}) in map coords; NOT fired after a pan/drag
+mv.onViewChanged(fn)// fired after pan/zoom — use to keep marker sizes constant
+mv.zoomTo(x, y, targetScale?)  // animate-ish center on a map point
+mv.fitAll()         // reset view to whole map
+MapView.el(tag, attrs) // static helper: create namespaced SVG element
+```
+
+Pan = mouse drag / one-finger drag. Zoom = wheel / pinch. Markers you add to
+`mv.overlay` are in map coordinates; divide sizes by `mv.scale` on
+`onViewChanged` if you want constant on-screen size. Strokes can use
+`vector-effect="non-scaling-stroke"`.
+
+## Guest UI requirements (`index.html`)
+
+- Full-screen map. Top card with **From** / **To** selectors (searchable
+  `<select>` or filtered list of `destination:true` nodes, grouped by type),
+  a swap button, and a **Directions** button.
+- Draws both routes on the map: **fastest** highlighted (primary color),
+  **shortest** as alternate (dashed/秒 secondary) when its path differs. Toggle
+  between them by clicking the route summary chips.
+- Bottom sheet/panel: distance, estimated walking time (e.g. "6 min · 420 m"),
+  and the turn-by-turn steps list for the selected option.
+- Start/end markers (green/red pin dots). Route should auto-fit in view.
+- Mobile-friendly (this replaces a phone app): touch pan/pinch works, layout
+  usable at 390px wide.
+
+## Admin UI requirements (`admin.html`)
+
+- Loads graph, renders ALL nodes (junctions included) + edges over the map.
+- Modes (toolbar): **Select/Move** (drag nodes to reposition), **Add Location**
+  (click map → prompt name/type → destination node), **Add Junction** (click →
+  junction node), **Draw Path** (click node A then node B → edge; choose
+  pathType from a small selector), **Delete** (click node/edge to remove;
+  deleting a node removes its edges).
+- Side panel shows selected node's properties (id read-only, name, type,
+  destination checkbox) editable.
+- **Save** button → `PUT /api/graph`; show success/error. **Reload** discards
+  local changes. Warn on leaving with unsaved changes.
+- Edge pathType shown by stroke color + legend.
+
+## File ownership (build phase)
+
+- Scaffold (done): `SPEC.md`, `package.json`, `data/graph.json`,
+  `public/img/resort-map.png`, `public/js/mapview.js`.
+- Backend agent: `server.js`, `lib/routing.js`, `scripts/test-routing.mjs`.
+- Guest UI agent: `public/index.html`, `public/js/app.js`, `public/css/app.css`.
+- Admin agent: `public/admin.html`, `public/js/admin.js`, `public/css/admin.css`.

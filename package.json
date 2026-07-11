@@ -1,0 +1,15 @@
+{
+  "name": "vidantamap",
+  "version": "0.1.0",
+  "description": "Resort boardwalk navigation MVP — walking directions on the hotel's own paths",
+  "type": "commonjs",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node scripts/test-routing.mjs"
+  },
+  "engines": { "node": ">=18" },
+  "dependencies": {
+    "express": "^4.21.0"
+  }
+}
