@@ -118,6 +118,31 @@ def euclid(i, j):
     (x1, y1), (x2, y2) = nodes[i], nodes[j]
     return np.hypot(x2-x1, y2-y1)
 
+# ---- drop edges running through building interiors ----
+# Building fill is pinkish-white; roof trim sometimes matches path colors and
+# yields false "paths" through slabs (guests can't walk through buildings).
+# Short skips at both ends keep doorway/breezeway connections alive; edges a
+# later connectivity pass needs get re-bridged around, not through.
+bld = (R >= 220) & (G >= 205) & (B >= 200) & ((R - G) >= 8)
+
+def building_frac(i, j, skip=6):
+    (x1, y1), (x2, y2) = nodes[i], nodes[j]
+    L = np.hypot(x2-x1, y2-y1)
+    n = max(2, int(L))
+    hits = total = 0
+    for k in range(n + 1):
+        t = k / n
+        if t * L < skip or (1 - t) * L < skip:
+            continue
+        x = int(round(x1 + (x2-x1)*t)); y = int(round(y1 + (y2-y1)*t))
+        total += 1
+        if 0 <= x < W and 0 <= y < H and bld[y, x]:
+            hits += 1
+    return hits / total if total else 0
+
+edges = [e for e in edges
+         if euclid(e[0], e[1]) < 10 or building_frac(e[0], e[1]) <= 0.5]
+
 for _ in range(4):
     adj = build_adj(edges)
     drop = set()
