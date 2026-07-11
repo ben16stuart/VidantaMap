@@ -13,8 +13,10 @@ npm install
 npm start
 ```
 
-- Guest app: **http://localhost:3000** — pick From/To (or tap two places on the
-  map), get directions.
+- Guest app: **http://localhost:3000** — pick From/To, tap two places, long-press
+  to drop a pin anywhere, or start from your GPS position with "⌖ Use my
+  current location" (requires HTTPS or localhost, and GPS calibration in
+  `data/graph.json` → `config.geo`; see SPEC.md).
 - Admin editor: **http://localhost:3000/admin.html** — move locations, add/rename
   locations, add junctions, draw/delete path segments, and save. Routing uses
   the updated network immediately.

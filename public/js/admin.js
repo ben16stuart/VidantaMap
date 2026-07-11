@@ -17,6 +17,7 @@
   var NODE_COLORS = {
     hotel: '#2563eb',
     restaurant: '#ea580c',
+    bar: '#c026d3',
     pool: '#0891b2',
     amenity: '#7c3aed',
     junction: '#8a8f98'

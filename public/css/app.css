@@ -13,6 +13,7 @@
   --end: #dc2626;
   --hotel: #6d5bd0;
   --restaurant: #d97706;
+  --bar: #c026d3;
   --pool: #0284c7;
   --amenity: #0b8a6d;
   --radius: 18px;
@@ -174,6 +175,21 @@ html, body {
 }
 #swap-btn:active { transform: scale(0.94); background: #eef5f3; }
 
+#loc-btn {
+  width: 100%;
+  margin-top: 8px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #ffffff;
+  color: #1d6fd2;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+#loc-btn:active { transform: translateY(1px); }
+#loc-btn:disabled { color: var(--muted); cursor: default; }
+
 #go-btn {
   width: 100%;
   margin-top: 10px;
@@ -204,6 +220,7 @@ html, body {
 .legend span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
 .lg { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
 .lg-hotel { background: var(--hotel); }
+.lg-bar { background: var(--bar); }
 .lg-restaurant { background: var(--restaurant); }
 .lg-pool { background: var(--pool); }
 .lg-amenity { background: var(--amenity); }

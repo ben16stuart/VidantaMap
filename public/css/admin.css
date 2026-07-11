@@ -324,6 +324,7 @@ button.danger:hover { background: #fee2e2; }
 .swatch.stairs { background: var(--c-stairs); }
 .swatch.hotel { background: var(--c-hotel); }
 .swatch.restaurant { background: var(--c-restaurant); }
+.swatch.bar { background: #c026d3; }
 .swatch.pool { background: var(--c-pool); }
 .swatch.amenity { background: var(--c-amenity); }
 .swatch.junction { background: var(--c-junction); width: 7px; height: 7px; }

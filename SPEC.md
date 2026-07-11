@@ -56,8 +56,15 @@ npm start          # → http://localhost:3000  (guest app)
 }
 ```
 
-Node `type` ∈ `hotel | restaurant | pool | amenity | junction` (open set; render
-unknown types like `amenity`).
+Node `type` ∈ `hotel | restaurant | bar | pool | amenity | junction` (open set;
+render unknown types like `amenity`).
+
+`config.geo` (optional) calibrates GPS → map pixels for "use my location":
+`{ "topLeft": {lat, lng}, "bottomRight": {lat, lng} }` — the lat/lng of the two
+map-image corners, assuming a north-up map. Linear interpolation is accurate
+enough at resort scale. To calibrate: stand at two known map points far apart,
+read the device GPS at each, and solve the corners (or nudge until the blue
+dot lands where you stand).
 
 ## API contract
 
@@ -140,6 +147,10 @@ Pan = mouse drag / one-finger drag. Zoom = wheel / pinch. Markers you add to
 - Bottom sheet/panel: distance, estimated walking time (e.g. "6 min · 420 m"),
   and the turn-by-turn steps list for the selected option.
 - Start/end markers (green/red pin dots). Route should auto-fit in view.
+- "⌖ Use my current location" button: reads device GPS (secure context —
+  HTTPS or localhost — required), converts via `config.geo`, rejects positions
+  beyond ~12% outside the map with a friendly message, then behaves as a From
+  pin rendered as a Google-style blue dot. Auto-routes if To is already set.
 - Dropped pins: long-press (hold ~0.5 s) anywhere on the map to drop a pin —
   first pin (or a fresh start) becomes From, the next becomes To and routes
   immediately, mirroring the tap-a-dot flow. A dropped pin appears as a

@@ -6,16 +6,18 @@
 (function () {
   'use strict';
 
-  var TYPE_ORDER = ['hotel', 'restaurant', 'pool', 'amenity'];
+  var TYPE_ORDER = ['hotel', 'restaurant', 'bar', 'pool', 'amenity'];
   var TYPE_LABELS = {
     hotel: 'Hotels',
     restaurant: 'Restaurants',
+    bar: 'Bars',
     pool: 'Pools',
     amenity: 'Amenities'
   };
   var TYPE_COLORS = {
     hotel: '#6d5bd0',
     restaurant: '#d97706',
+    bar: '#c026d3',
     pool: '#0284c7',
     amenity: '#0b8a6d'
   };
@@ -29,6 +31,7 @@
     to: $('to-select'),
     swap: $('swap-btn'),
     go: $('go-btn'),
+    loc: $('loc-btn'),
     toast: $('toast'),
     sheet: $('sheet'),
     sheetToggle: $('sheet-toggle'),
@@ -49,6 +52,7 @@
   var PIN_VALUE = '__pin';     // select value representing a dropped pin
   var pins = { from: null, to: null };  // dropped-pin map coords per side
   var suppressTap = false;     // swallow the tap that ends a long-press
+  var fromIsLocation = false;  // From pin came from device GPS (blue-dot marker)
 
   /* ---------------- helpers ---------------- */
 
@@ -155,6 +159,7 @@
     if (!els.from.value || (els.from.value && els.to.value)) {
       pins.from = point;
       pins.to = null;
+      fromIsLocation = false;
       setPinOption(els.from);
       removePinOption(els.to);
       els.to.value = '';
@@ -168,14 +173,73 @@
     updatePins();
   }
 
-  function setPinOption(sel) {
+  /* ---------------- current location (GPS) ---------------- */
+
+  /* Linear lat/lng → map px using the config.geo corner calibration. */
+  function gpsToMap(lat, lng) {
+    var geo = graph.config.geo;
+    if (!geo || !geo.topLeft || !geo.bottomRight) return null;
+    return {
+      x: (lng - geo.topLeft.lng) / (geo.bottomRight.lng - geo.topLeft.lng) * graph.config.width,
+      y: (lat - geo.topLeft.lat) / (geo.bottomRight.lat - geo.topLeft.lat) * graph.config.height
+    };
+  }
+
+  function useMyLocation() {
+    if (!navigator.geolocation) {
+      showToast('Location is not available in this browser.', true);
+      return;
+    }
+    if (!graph.config.geo) {
+      showToast('This map has no GPS calibration yet — ask the resort to set it up.', true);
+      return;
+    }
+    els.loc.disabled = true;
+    els.loc.textContent = 'Locating…';
+
+    function done() {
+      els.loc.disabled = false;
+      els.loc.textContent = '⌖ Use my current location';
+    }
+
+    navigator.geolocation.getCurrentPosition(function (pos) {
+      done();
+      var p = gpsToMap(pos.coords.latitude, pos.coords.longitude);
+      // tolerate a little GPS drift just past the map edge, then clamp on
+      var marginX = graph.config.width * 0.12, marginY = graph.config.height * 0.12;
+      if (!p || p.x < -marginX || p.y < -marginY ||
+          p.x > graph.config.width + marginX || p.y > graph.config.height + marginY) {
+        showToast('You appear to be outside the resort map, so directions can’t start from your location.', true, 6000);
+        return;
+      }
+      pins.from = {
+        x: Math.round(Math.min(Math.max(p.x, 0), graph.config.width)),
+        y: Math.round(Math.min(Math.max(p.y, 0), graph.config.height))
+      };
+      fromIsLocation = true;
+      setPinOption(els.from, '⌖ My location');
+      clearRoute();
+      updatePins();
+      mv.zoomTo(pins.from.x, pins.from.y);
+      if (els.to.value) getDirections();
+      else showToast('Starting from your location. Now pick a destination.');
+    }, function (err) {
+      done();
+      var msg = err && err.code === 1
+        ? 'Location permission was denied. Allow location access and try again.'
+        : 'Could not get your location. Note: location only works over HTTPS (or localhost).';
+      showToast(msg, true, 6000);
+    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 });
+  }
+
+  function setPinOption(sel, label) {
     var opt = sel.querySelector('option[value="' + PIN_VALUE + '"]');
     if (!opt) {
       opt = document.createElement('option');
       opt.value = PIN_VALUE;
-      opt.textContent = '📍 Dropped pin';
       sel.insertBefore(opt, sel.firstChild.nextSibling); // right after placeholder
     }
+    opt.textContent = label || '📍 Dropped pin';
     sel.value = PIN_VALUE;
   }
 
@@ -256,6 +320,7 @@
       // fresh selection: start over from this node
       pins.from = null;
       pins.to = null;
+      fromIsLocation = false;
       removePinOption(els.from);
       removePinOption(els.to);
       els.from.value = best.id;
@@ -306,12 +371,14 @@
 
   function wireUi() {
     els.go.addEventListener('click', getDirections);
+    els.loc.addEventListener('click', useMyLocation);
 
     els.swap.addEventListener('click', function () {
       var fVal = els.from.value, tVal = els.to.value;
       var tmpPin = pins.from;
       pins.from = pins.to;
       pins.to = tmpPin;
+      fromIsLocation = false; // a swapped location pin becomes a plain pin
       if (tVal === PIN_VALUE) { setPinOption(els.from); }
       else { removePinOption(els.from); els.from.value = tVal; }
       if (fVal === PIN_VALUE) { setPinOption(els.to); }
@@ -328,6 +395,7 @@
           // picking a real place discards that side's dropped pin
           pins[sideOf(sel)] = null;
           removePinOption(sel);
+          if (sel === els.from) fromIsLocation = false;
         }
         clearRoute(); // selection changed — old route is stale
         updatePins();
@@ -443,13 +511,27 @@
     return g;
   }
 
+  /* Google-style blue dot for "my location". */
+  function makeLocationDot() {
+    var g = MapView.el('g', { 'data-scaled': '1' });
+    g.appendChild(MapView.el('circle', {
+      cx: 0, cy: 0, r: 14, fill: '#3b82f6', 'fill-opacity': 0.25
+    }));
+    g.appendChild(MapView.el('circle', {
+      cx: 0, cy: 0, r: 6.5, fill: '#2563eb', stroke: '#ffffff', 'stroke-width': 2.5
+    }));
+    return g;
+  }
+
   /* Green start / red end pins for the current From/To selection. */
   function updatePins() {
     while (gPins.firstChild) gPins.removeChild(gPins.firstChild);
     var from = endpointCoords(els.from);
     var to = endpointCoords(els.to);
     if (from) {
-      var p1 = makePin('#16a34a');
+      var p1 = fromIsLocation && els.from.value === PIN_VALUE
+        ? makeLocationDot()
+        : makePin('#16a34a');
       p1.dataset.mx = from.x; p1.dataset.my = from.y;
       gPins.appendChild(p1);
     }
@@ -526,7 +608,8 @@
   function renderDetails() {
     if (!route) return;
     var r = route.routes[selectedOpt];
-    var fromName = endpointName(route.from);
+    var fromName = fromIsLocation && els.from.value === PIN_VALUE
+      ? 'My location' : endpointName(route.from);
     var toName = endpointName(route.to);
 
     els.summary.innerHTML = '';
