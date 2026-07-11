@@ -188,6 +188,33 @@ test('pin routing leaves the stored graph unmodified', () => {
   assert.ok(!graph.nodes.some((n) => String(n.id).startsWith('__pin')));
 });
 
+test('paved cart roads are avoided when a boardwalk detour exists', () => {
+  // A--B direct on a road (100px) vs A--C--B boardwalk detour (~283px).
+  // With the ×4 paved penalty the boardwalk detour must win in both modes,
+  // and crossing-sized paved hops must still be usable when unavoidable.
+  const tiny = {
+    config: graph.config,
+    nodes: [
+      { id: 'A', name: 'A', type: 'amenity', x: 0, y: 0, destination: true },
+      { id: 'B', name: 'B', type: 'amenity', x: 100, y: 0, destination: true },
+      { id: 'C', name: '', type: 'junction', x: 50, y: 100, destination: false },
+    ],
+    edges: [
+      { id: 'road', from: 'A', to: 'B', pathType: 'paved' },
+      { id: 'b1', from: 'A', to: 'C', pathType: 'boardwalk' },
+      { id: 'b2', from: 'C', to: 'B', pathType: 'boardwalk' },
+    ],
+  };
+  const resp = buildRouteResponse(tiny, 'A', 'B');
+  assert.deepEqual(resp.routes.shortest.nodeIds, ['A', 'C', 'B'], 'shortest avoids the road');
+  assert.deepEqual(resp.routes.fastest.nodeIds, ['A', 'C', 'B'], 'fastest avoids the road');
+  // reported distance stays the REAL walked distance (not penalty-inflated)
+  assert.ok(resp.routes.shortest.distanceMeters < 300 * (graph.config.metersPerPixel || 1) + 1);
+  // road-only connection still routes (crossing / no alternative)
+  const roadOnly = { config: graph.config, nodes: tiny.nodes.slice(0, 2), edges: [tiny.edges[0]] };
+  assert.equal(buildRouteResponse(roadOnly, 'A', 'B').routes.fastest.nodeIds.length, 2);
+});
+
 test('bearing math sanity', () => {
   // Screen coords: +x = east, +y = south (y grows downward).
   assert.equal(routing.bearing({ x: 0, y: 0 }, { x: 0, y: -10 }), 0);   // north

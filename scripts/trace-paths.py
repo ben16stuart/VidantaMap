@@ -172,16 +172,20 @@ def components(edges):
         comps.append(comp)
     return comps
 
+# vegetation (grass/jungle): green-dominant pixels — bridges must not cross it
+veg = ((G - R) >= 16) & ((G - B) >= 25)
+
 def line_ok(i, j):
-    """A bridge may not cross water."""
+    """A bridge may only cross pin/building graphics or path pixels —
+    never water and never the jungle/grass."""
     (x1, y1), (x2, y2) = nodes[i], nodes[j]
     n = max(2, int(np.hypot(x2-x1, y2-y1)))
     bad = 0
     for k in range(n + 1):
         x = int(round(x1 + (x2-x1)*k/n)); y = int(round(y1 + (y2-y1)*k/n))
-        if 0 <= x < W and 0 <= y < H and water[y, x]:
+        if 0 <= x < W and 0 <= y < H and (water[y, x] or veg[y, x]):
             bad += 1
-    return bad <= n * 0.1
+    return bad <= n * 0.12
 
 while True:
     comps = components(edges)
@@ -195,7 +199,7 @@ while True:
         for i in comp:
             for j in main:
                 d = euclid(i, j)
-                if d < 130 and (best is None or d < best[0]) and line_ok(i, j):
+                if d < 90 and (best is None or d < best[0]) and line_ok(i, j):
                     best = (d, i, j)
     if best is None:
         # drop remaining unreachable debris
@@ -216,7 +220,7 @@ for i in endpoints:
         if j == i or j == nbr or (min(i,j), max(i,j)) in existing:
             continue
         d = euclid(i, j)
-        if d > 60:
+        if d > 45:
             continue
         wx = nodes[j][0]-nodes[i][0]; wy = nodes[j][1]-nodes[i][1]
         dot = vx*wx + vy*wy
