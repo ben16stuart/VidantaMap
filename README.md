@@ -21,6 +21,19 @@ npm start
   locations, add junctions, draw/delete path segments, and save. Routing uses
   the updated network immediately.
 
+## Try it on a phone (HTTPS, GPS-capable)
+
+`docs/index.html` is a self-contained serverless build of the guest app
+(rebuild with `node scripts/build-static-demo.mjs --image public/img/resort-map-demo.jpg --out docs/index.html`).
+Enable GitHub Pages (repo **Settings → Pages → Deploy from a branch**, pick this
+branch and the `/docs` folder) and GitHub serves it at
+`https://<user>.github.io/VidantaMap/` — a top-level HTTPS page, so the
+"⌖ Use my current location" button can actually prompt for GPS on iPhone.
+Note the page is public to anyone with the URL, and it's a snapshot: rebuild
+and push after editing the graph. Embedded demo frames and plain-HTTP LAN
+addresses block browser GPS by design; the app explains this and falls back
+to press-and-hold pin placement.
+
 ## How it works
 
 - The resort map image is the base layer; every location and path junction is a

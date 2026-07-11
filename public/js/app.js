@@ -185,9 +185,32 @@
     };
   }
 
+  /* True when we're inside a cross-origin iframe whose permissions policy
+   * blocks geolocation (e.g. an embedded demo view) — the browser then
+   * auto-denies without ever prompting the user. */
+  function geoBlockedByFrame() {
+    try {
+      if (window.self === window.top) return false;
+      if (document.featurePolicy && document.featurePolicy.allowsFeature) {
+        return !document.featurePolicy.allowsFeature('geolocation');
+      }
+    } catch (e) { /* fall through */ }
+    return false;
+  }
+
+  var MANUAL_TIP = ' You can still set your start manually: press and hold the map where you are.';
+
   function useMyLocation() {
     if (!navigator.geolocation) {
-      showToast('Location is not available in this browser.', true);
+      showToast('Location is not available in this browser.' + MANUAL_TIP, true, 8000);
+      return;
+    }
+    if (!window.isSecureContext) {
+      showToast('Location needs a secure (HTTPS) connection — this page is plain HTTP, so the phone blocks GPS.' + MANUAL_TIP, true, 8000);
+      return;
+    }
+    if (geoBlockedByFrame()) {
+      showToast('This embedded demo view blocks location access.' + MANUAL_TIP, true, 8000);
       return;
     }
     if (!graph.config.geo) {
@@ -225,10 +248,15 @@
       else showToast('Starting from your location. Now pick a destination.');
     }, function (err) {
       done();
-      var msg = err && err.code === 1
-        ? 'Location permission was denied. Allow location access and try again.'
-        : 'Could not get your location. Note: location only works over HTTPS (or localhost).';
-      showToast(msg, true, 6000);
+      var msg;
+      if (err && err.code === 1) {
+        msg = geoBlockedByFrame()
+          ? 'This embedded demo view blocks location access.' + MANUAL_TIP
+          : 'Location permission was denied. On iPhone: Settings → Privacy & Security → Location Services → Safari Websites → While Using.' + MANUAL_TIP;
+      } else {
+        msg = 'Could not get your location right now.' + MANUAL_TIP;
+      }
+      showToast(msg, true, 9000);
     }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 });
   }
 
