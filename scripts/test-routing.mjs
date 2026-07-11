@@ -158,6 +158,36 @@ test('turn steps use Turn/Bear left/right vocabulary only', () => {
   }
 });
 
+test('dropped pin snaps to nearest path and routes', () => {
+  // a point off in the grass west of the center paths
+  const resp = buildRouteResponse(graph, '350,700', 'spa');
+  assert.equal(resp.from, '350,700');
+  assert.deepEqual(resp.pins.from, { x: 350, y: 700 });
+  for (const route of [resp.routes.shortest, resp.routes.fastest]) {
+    // route starts at the raw pin point and walks a connector to the path
+    assert.deepEqual(route.coords[0], { x: 350, y: 700 });
+    assert.ok(route.distanceMeters > 0);
+    assert.match(route.steps[0].text, /^Head \w+ on the nearest path$/);
+    assert.equal(route.steps.at(-1).text, 'Arrive at Spa & Wellness Center');
+  }
+});
+
+test('pin-to-pin routing works, including both pins near the same segment', () => {
+  const resp = buildRouteResponse(graph, '440,630', '480,650');
+  assert.ok(resp.routes.shortest.distanceMeters > 0);
+  assert.ok(resp.routes.shortest.distanceMeters < 150, 'nearby pins should be a short walk');
+  assert.equal(resp.routes.shortest.steps.at(-1).text, 'Arrive at Dropped pin');
+});
+
+test('pin routing leaves the stored graph unmodified', () => {
+  const nodesBefore = graph.nodes.length;
+  const edgesBefore = graph.edges.length;
+  buildRouteResponse(graph, '350,700', '700,1200');
+  assert.equal(graph.nodes.length, nodesBefore);
+  assert.equal(graph.edges.length, edgesBefore);
+  assert.ok(!graph.nodes.some((n) => String(n.id).startsWith('__pin')));
+});
+
 test('bearing math sanity', () => {
   // Screen coords: +x = east, +y = south (y grows downward).
   assert.equal(routing.bearing({ x: 0, y: 0 }, { x: 0, y: -10 }), 0);   // north

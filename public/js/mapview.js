@@ -27,6 +27,9 @@
       });
       this.svg.style.touchAction = 'none';
       this.svg.style.userSelect = 'none';
+      this.svg.style.webkitUserSelect = 'none';
+      // stop iOS long-press from opening the image save/copy callout
+      this.svg.style.webkitTouchCallout = 'none';
       this.svg.style.display = 'block';
       this.svg.style.cursor = 'grab';
 

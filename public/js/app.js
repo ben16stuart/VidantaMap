@@ -46,6 +46,10 @@
   var selectedOpt = 'fastest';
   var toastTimer = null;
 
+  var PIN_VALUE = '__pin';     // select value representing a dropped pin
+  var pins = { from: null, to: null };  // dropped-pin map coords per side
+  var suppressTap = false;     // swallow the tap that ends a long-press
+
   /* ---------------- helpers ---------------- */
 
   function typeColor(type) { return TYPE_COLORS[type] || '#64748b'; }
@@ -108,7 +112,99 @@
     drawDestinationDots();
     mv.onViewChanged(updateScaledMarkers);
     mv.onClick(handleMapTap);
+    bindLongPress();
     updateScaledMarkers();
+  }
+
+  /* Long-press (hold ~0.5s without moving) anywhere → drop a pin there. */
+  function bindLongPress() {
+    var timer = null;
+    var start = null;
+
+    function cancel() {
+      if (timer) clearTimeout(timer);
+      timer = null;
+      start = null;
+    }
+
+    mv.svg.addEventListener('pointerdown', function (e) {
+      if (timer) { cancel(); return; }   // second finger → pinch, not a pin
+      start = { x: e.clientX, y: e.clientY };
+      timer = setTimeout(function () {
+        var p = mv.screenToMap(start.x, start.y);
+        timer = null;
+        suppressTap = true;              // the pointerup would otherwise re-fire a tap
+        dropPin(p);
+      }, 550);
+    });
+    mv.svg.addEventListener('pointermove', function (e) {
+      if (!start) return;
+      if (Math.hypot(e.clientX - start.x, e.clientY - start.y) > 8) cancel();
+    });
+    mv.svg.addEventListener('pointerup', cancel);
+    mv.svg.addEventListener('pointercancel', cancel);
+    mv.svg.addEventListener('wheel', cancel);
+  }
+
+  /* First pin (or a fresh start) becomes From; the second becomes To + routes. */
+  function dropPin(p) {
+    var point = { x: Math.round(p.x), y: Math.round(p.y) };
+    if (point.x < 0 || point.y < 0 ||
+        point.x > graph.config.width || point.y > graph.config.height) return;
+
+    if (!els.from.value || (els.from.value && els.to.value)) {
+      pins.from = point;
+      pins.to = null;
+      setPinOption(els.from);
+      removePinOption(els.to);
+      els.to.value = '';
+      clearRoute();
+      showToast('Pin dropped as your starting point. Now tap a place or hold to drop another pin.');
+    } else {
+      pins.to = point;
+      setPinOption(els.to);
+      getDirections();
+    }
+    updatePins();
+  }
+
+  function setPinOption(sel) {
+    var opt = sel.querySelector('option[value="' + PIN_VALUE + '"]');
+    if (!opt) {
+      opt = document.createElement('option');
+      opt.value = PIN_VALUE;
+      opt.textContent = '📍 Dropped pin';
+      sel.insertBefore(opt, sel.firstChild.nextSibling); // right after placeholder
+    }
+    sel.value = PIN_VALUE;
+  }
+
+  function removePinOption(sel) {
+    var opt = sel.querySelector('option[value="' + PIN_VALUE + '"]');
+    if (opt) opt.remove();
+  }
+
+  /* Endpoint helpers: a side is either a node id or a dropped pin. */
+  function sideOf(sel) { return sel === els.from ? 'from' : 'to'; }
+
+  function endpointParam(sel) {
+    if (sel.value === PIN_VALUE) {
+      var p = pins[sideOf(sel)];
+      return p ? p.x + ',' + p.y : '';
+    }
+    return sel.value;
+  }
+
+  function endpointCoords(sel) {
+    if (sel.value === PIN_VALUE) return pins[sideOf(sel)];
+    var n = nodesById[sel.value];
+    return n ? { x: n.x, y: n.y } : null;
+  }
+
+  function endpointName(param) {
+    if (nodesById[param]) return nodesById[param].name;
+    if (/^-?\d+(\.\d+)?,-?\d+(\.\d+)?$/.test(param)) return 'Dropped pin';
+    return param;
   }
 
   /* ---------------- destination dots ---------------- */
@@ -146,6 +242,7 @@
 
   /* Tap a destination dot: first tap sets From, second sets To (and routes). */
   function handleMapTap(p) {
+    if (suppressTap) { suppressTap = false; return; }
     var hitRadius = 16 / mv.scale; // ~16 screen px in map units
     var best = null, bestD = Infinity;
     graph.nodes.forEach(function (n) {
@@ -157,6 +254,10 @@
 
     if (!els.from.value || (els.from.value && els.to.value)) {
       // fresh selection: start over from this node
+      pins.from = null;
+      pins.to = null;
+      removePinOption(els.from);
+      removePinOption(els.to);
       els.from.value = best.id;
       els.to.value = '';
       clearRoute();
@@ -164,6 +265,8 @@
     } else if (best.id === els.from.value) {
       showToast('That is already your starting point — tap somewhere else to go.');
     } else {
+      pins.to = null;
+      removePinOption(els.to);
       els.to.value = best.id;
       getDirections();
     }
@@ -205,9 +308,14 @@
     els.go.addEventListener('click', getDirections);
 
     els.swap.addEventListener('click', function () {
-      var f = els.from.value;
-      els.from.value = els.to.value;
-      els.to.value = f;
+      var fVal = els.from.value, tVal = els.to.value;
+      var tmpPin = pins.from;
+      pins.from = pins.to;
+      pins.to = tmpPin;
+      if (tVal === PIN_VALUE) { setPinOption(els.from); }
+      else { removePinOption(els.from); els.from.value = tVal; }
+      if (fVal === PIN_VALUE) { setPinOption(els.to); }
+      else { removePinOption(els.to); els.to.value = fVal; }
       updatePins();
       if (route && els.from.value && els.to.value) {
         getDirections();
@@ -216,6 +324,11 @@
 
     [els.from, els.to].forEach(function (sel) {
       sel.addEventListener('change', function () {
+        if (sel.value !== PIN_VALUE) {
+          // picking a real place discards that side's dropped pin
+          pins[sideOf(sel)] = null;
+          removePinOption(sel);
+        }
         clearRoute(); // selection changed — old route is stale
         updatePins();
       });
@@ -233,7 +346,7 @@
   /* ---------------- routing ---------------- */
 
   function getDirections() {
-    var from = els.from.value, to = els.to.value;
+    var from = endpointParam(els.from), to = endpointParam(els.to);
     if (!from || !to) {
       showToast('Choose both a starting point and a destination.');
       return;
@@ -333,8 +446,8 @@
   /* Green start / red end pins for the current From/To selection. */
   function updatePins() {
     while (gPins.firstChild) gPins.removeChild(gPins.firstChild);
-    var from = nodesById[els.from.value];
-    var to = nodesById[els.to.value];
+    var from = endpointCoords(els.from);
+    var to = endpointCoords(els.to);
     if (from) {
       var p1 = makePin('#16a34a');
       p1.dataset.mx = from.x; p1.dataset.my = from.y;
@@ -413,8 +526,8 @@
   function renderDetails() {
     if (!route) return;
     var r = route.routes[selectedOpt];
-    var fromName = (nodesById[route.from] || {}).name || route.from;
-    var toName = (nodesById[route.to] || {}).name || route.to;
+    var fromName = endpointName(route.from);
+    var toName = endpointName(route.to);
 
     els.summary.innerHTML = '';
     var big = document.createTextNode(fmtTime(r.timeSeconds) + ' · ' + fmtDist(r.distanceMeters));

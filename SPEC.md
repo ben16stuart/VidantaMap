@@ -67,7 +67,14 @@ unknown types like `amenity`).
   exists; no self-loop edges; numeric coords; known-or-defaulted pathType
   (unknown pathType falls back to `boardwalk` speed at routing time, do not
   reject). On success `{ ok: true }`; on failure HTTP 400 `{ error: "..." }`.
-- `GET /api/route?from=<nodeId>&to=<nodeId>` → both route options:
+- `GET /api/route?from=<endpoint>&to=<endpoint>` → both route options. An
+  endpoint is a node id **or** raw map coordinates in `x,y` form (a dropped
+  pin). Coordinate endpoints are snapped to the closest point on the closest
+  path segment; the walk from the pin to the path is included in the route
+  (steps say "Head … on the nearest path", arrival at a pin says "Arrive at
+  Dropped pin"). When any endpoint is a pin the response also carries
+  `"pins": { "from"?: {x, y}, "to"?: {x, y} }` echoing the raw points. The
+  stored graph is never modified by pin routing.
 
 ```jsonc
 {
@@ -133,6 +140,11 @@ Pan = mouse drag / one-finger drag. Zoom = wheel / pinch. Markers you add to
 - Bottom sheet/panel: distance, estimated walking time (e.g. "6 min · 420 m"),
   and the turn-by-turn steps list for the selected option.
 - Start/end markers (green/red pin dots). Route should auto-fit in view.
+- Dropped pins: long-press (hold ~0.5 s) anywhere on the map to drop a pin —
+  first pin (or a fresh start) becomes From, the next becomes To and routes
+  immediately, mirroring the tap-a-dot flow. A dropped pin appears as a
+  "📍 Dropped pin" option in the matching select; picking a real place
+  discards it.
 - Mobile-friendly (this replaces a phone app): touch pan/pinch works, layout
   usable at 390px wide.
 
