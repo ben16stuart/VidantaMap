@@ -62,6 +62,7 @@
   var suppressTap = false;     // swallow the tap that ends a long-press
   var fromIsLocation = false;  // From pin came from device GPS (blue-dot marker)
   var GEO_STORE_KEY = 'vidantamap-geo-calibration';
+  var calAnchors = [];         // GPS↔map reference points ({lat,lng,x,y}, max 2)
   var typeVisible = { hotel: true, restaurant: true, bar: true, pool: true, amenity: true };
   function isTypeVisible(type) {
     return typeVisible[type] !== undefined ? typeVisible[type] : typeVisible.amenity;
@@ -115,7 +116,15 @@
         // a calibration done on this device beats the shipped estimate
         try {
           var savedGeo = localStorage.getItem(GEO_STORE_KEY);
-          if (savedGeo) graph.config.geo = JSON.parse(savedGeo);
+          if (savedGeo) {
+            var parsed = JSON.parse(savedGeo);
+            if (parsed.topLeft) {            // legacy format: geo only
+              graph.config.geo = parsed;
+            } else if (parsed.geo) {
+              graph.config.geo = parsed.geo;
+              calAnchors = parsed.anchors || [];
+            }
+          }
         } catch (e) { /* private mode etc. — ignore */ }
         setupMap();
         buildSelects();
@@ -225,14 +234,54 @@
     };
   }
 
+  /* Two anchors far apart solve the map's real degree-per-pixel scale on
+   * each axis; one anchor only shifts the map (scale from metersPerPixel). */
+  function geoFromAnchors(anchors) {
+    if (anchors.length < 2) {
+      var a0 = anchors[0];
+      return geoFromAnchor(a0.lat, a0.lng, a0.x, a0.y);
+    }
+    var a = anchors[0], b = anchors[1];
+    var mpp = graph.config.metersPerPixel || 1;
+    var fallbackLat = -mpp / 110540;    // ° per px downward (lat shrinks as y grows)
+    var fallbackLng = mpp / (111320 * Math.cos(a.lat * Math.PI / 180));
+    var latPerPx = Math.abs(b.y - a.y) >= 120 ? (b.lat - a.lat) / (b.y - a.y) : fallbackLat;
+    var lngPerPx = Math.abs(b.x - a.x) >= 120 ? (b.lng - a.lng) / (b.x - a.x) : fallbackLng;
+    // sanity: right direction, within 3× of the nominal scale — else GPS noise won
+    if (!(latPerPx < 0) || Math.abs(latPerPx / fallbackLat) > 3 || Math.abs(latPerPx / fallbackLat) < 0.33) latPerPx = fallbackLat;
+    if (!(lngPerPx > 0) || Math.abs(lngPerPx / fallbackLng) > 3 || Math.abs(lngPerPx / fallbackLng) < 0.33) lngPerPx = fallbackLng;
+    var topLat = a.lat - a.y * latPerPx;
+    var topLng = a.lng - a.x * lngPerPx;
+    return {
+      comment: 'Calibrated in-app from ' + anchors.length + ' GPS reference points.',
+      topLeft: { lat: topLat, lng: topLng },
+      bottomRight: { lat: topLat + graph.config.height * latPerPx, lng: topLng + graph.config.width * lngPerPx }
+    };
+  }
+
   function calibrateAt(p) {
     var cal = pendingCal;
     pendingCal = null;
     hideToast();
     var x = Math.round(Math.min(Math.max(p.x, 0), graph.config.width));
     var y = Math.round(Math.min(Math.max(p.y, 0), graph.config.height));
-    graph.config.geo = geoFromAnchor(cal.lat, cal.lng, x, y);
-    try { localStorage.setItem(GEO_STORE_KEY, JSON.stringify(graph.config.geo)); } catch (e) { /* ignore */ }
+
+    calAnchors.push({ lat: cal.lat, lng: cal.lng, x: x, y: y });
+    if (calAnchors.length > 2) {
+      // keep the pair that spans the most map — better scale solving
+      var best = null;
+      for (var i = 0; i < calAnchors.length; i++) {
+        for (var j = i + 1; j < calAnchors.length; j++) {
+          var d = Math.hypot(calAnchors[i].x - calAnchors[j].x, calAnchors[i].y - calAnchors[j].y);
+          if (!best || d > best.d) best = { d: d, pair: [calAnchors[i], calAnchors[j]] };
+        }
+      }
+      calAnchors = best.pair;
+    }
+    graph.config.geo = geoFromAnchors(calAnchors);
+    try {
+      localStorage.setItem(GEO_STORE_KEY, JSON.stringify({ geo: graph.config.geo, anchors: calAnchors }));
+    } catch (e) { /* ignore */ }
     // best effort: persist for everyone when the real server is behind us
     try {
       fetch('/api/graph', {
@@ -249,8 +298,11 @@
     updatePins();
     if (following()) { hadFix = true; ensureLiveDot(x, y); }
     mv.zoomTo(x, y);
-    if (els.to.value) getDirections();
-    else showToast('Map calibrated to your GPS ✓ Starting from your location — now pick a destination.');
+    var calMsg = calAnchors.length >= 2
+      ? 'Calibrated with 2 reference points — map scale corrected ✓'
+      : 'Calibrated ✓ For even better accuracy, hold ⌖ again somewhere far from here and repeat.';
+    if (els.to.value) { getDirections(); showToast(calMsg); }
+    else showToast(calMsg + ' Now pick a destination.');
   }
 
   /* True when we're inside a cross-origin iframe whose permissions policy
@@ -275,24 +327,42 @@
   var autoCenter = false;     // keep the map centered on the live dot
   var lastCenter = 0;         // last auto-recenter time (throttled)
   var liveDot = null;         // the moving blue-dot marker
+  var accRing = null;         // GPS accuracy circle (true map size)
   var hadFix = false;         // got at least one usable fix this session
+  var lastFix = null;         // most recent raw GPS fix {lat, lng}
+  var calibrateOnFix = false; // FAB held before tracking had a fix
   var CENTER_EVERY_MS = 4000;
 
   function following() { return watchId !== null; }
 
-  function ensureLiveDot(x, y) {
+  function ensureLiveDot(x, y, accuracyMeters) {
+    if (!accRing) {
+      accRing = MapView.el('circle', {
+        fill: '#3b82f6', 'fill-opacity': 0.12, stroke: '#3b82f6',
+        'stroke-opacity': 0.35, 'stroke-width': 1,
+        'vector-effect': 'non-scaling-stroke', 'pointer-events': 'none'
+      });
+      mv.overlay.appendChild(accRing);
+    }
     if (!liveDot) {
       liveDot = makeLocationDot();
       mv.overlay.appendChild(liveDot);
     }
     liveDot.dataset.mx = x;
     liveDot.dataset.my = y;
+    accRing.setAttribute('cx', x);
+    accRing.setAttribute('cy', y);
+    // accuracy radius in true map pixels (shows GPS wobble honestly)
+    var mpp = graph.config.metersPerPixel || 1;
+    accRing.setAttribute('r', Math.min((accuracyMeters || 20) / mpp, 200));
     updateScaledMarkers();
   }
 
   function removeLiveDot() {
     if (liveDot && liveDot.parentNode) liveDot.parentNode.removeChild(liveDot);
+    if (accRing && accRing.parentNode) accRing.parentNode.removeChild(accRing);
     liveDot = null;
+    accRing = null;
   }
 
   function updateFollowUi() {
@@ -316,6 +386,13 @@
 
   function onFix(pos) {
     var lat = pos.coords.latitude, lng = pos.coords.longitude;
+    lastFix = { lat: lat, lng: lng, accuracy: pos.coords.accuracy };
+    if (calibrateOnFix) {      // user held ⌖ before the first fix arrived
+      calibrateOnFix = false;
+      pendingCal = { lat: lat, lng: lng, soft: false };
+      showToast('Got a GPS fix. Now tap the map exactly where you are standing.', false, 0);
+      return;
+    }
     var p = gpsToMap(lat, lng);
     var marginX = graph.config.width * 0.12, marginY = graph.config.height * 0.12;
     if (!p || p.x < -marginX || p.y < -marginY ||
@@ -333,7 +410,7 @@
     var y = Math.round(Math.min(Math.max(p.y, 0), graph.config.height));
     var first = !hadFix;
     hadFix = true;
-    ensureLiveDot(x, y);
+    ensureLiveDot(x, y, pos.coords.accuracy);
 
     if (first) {
       // brief window to correct a wrong-but-in-bounds dot with a tap
@@ -401,6 +478,21 @@
       timeout: 15000
     });
     updateFollowUi();
+  }
+
+  /* Hold-⌖ entry point: recalibrate from the freshest GPS fix. */
+  function startRecalibration() {
+    if (!graph || !graph.config.geo) return;
+    if (lastFix) {
+      pendingCal = { lat: lastFix.lat, lng: lastFix.lng, soft: false };
+      showToast('Recalibrating: tap the map exactly where you are standing.', false, 0);
+      return;
+    }
+    // no fix yet — start tracking and calibrate on the first fix
+    calibrateOnFix = true;
+    if (!following()) useMyLocation();
+    if (following()) showToast('Getting a GPS fix… then tap the map exactly where you are standing.', false, 0);
+    else calibrateOnFix = false; // useMyLocation refused (insecure context etc.)
   }
 
   /* Panning by hand pauses auto-centering (tracking continues). */
@@ -633,7 +725,22 @@
   function wireUi() {
     els.go.addEventListener('click', getDirections);
     els.loc.addEventListener('click', useMyLocation);
-    els.fab.addEventListener('click', useMyLocation);
+    // hold ⌖ ~0.6s → recalibrate: tap the map where you actually are
+    var fabHold = null, fabHeld = false;
+    els.fab.addEventListener('pointerdown', function () {
+      fabHeld = false;
+      fabHold = setTimeout(function () {
+        fabHeld = true;
+        startRecalibration();
+      }, 600);
+    });
+    ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) {
+      els.fab.addEventListener(ev, function () { clearTimeout(fabHold); });
+    });
+    els.fab.addEventListener('click', function () {
+      if (fabHeld) { fabHeld = false; return; }  // the hold consumed this press
+      useMyLocation();
+    });
     updateFollowUi();
 
     // keep the follow button floating just above the directions sheet

@@ -66,12 +66,16 @@ enough at resort scale.
 
 **Tap-to-calibrate (guest app):** when a GPS fix lands off the map, the app
 asks the user to tap the map where they actually are; when it lands in-bounds
-the user has ~15 s to tap the true spot on empty map. One anchor point plus
+the user has ~15 s to tap the true spot on empty map; and **holding the ⌖
+button ~0.6 s starts recalibration at any time**. One anchor point plus
 `metersPerPixel` and the north-up assumption fully determine both corners.
-The result is saved to the device (`localStorage`, which overrides the shipped
-values on that device) and PUT back to `/api/graph` when the server is
-reachable, fixing it for everyone. The static demo build saves device-side
-only.
+A **second anchor** taken far from the first (>120 px on an axis) solves the
+map's real degree-per-pixel scale on that axis; implausible solves (wrong
+direction or >3× off nominal) fall back to the nominal scale, so a bad tap
+can't wreck the mapping. Up to 2 anchors are kept (the farthest-apart pair).
+Results persist to the device (`localStorage`, overriding shipped values) and
+PUT back to `/api/graph` when the server is reachable. The live dot also
+shows a translucent GPS-accuracy circle sized in real map meters.
 
 ## API contract
 
