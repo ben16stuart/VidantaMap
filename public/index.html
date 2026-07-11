@@ -13,12 +13,20 @@
 
 <!-- Floating top card: From / To / Directions -->
 <header id="topcard" class="card">
+  <button id="topcard-mini" type="button" hidden aria-label="Show route options">
+    <span class="mini-dot" aria-hidden="true"></span>
+    <span id="mini-text">Where to?</span>
+    <span class="mini-chevron" aria-hidden="true">▾</span>
+  </button>
+
+  <div id="topcard-full">
   <div class="brand">
     <span class="brand-mark" aria-hidden="true">V</span>
     <div class="brand-text">
       <strong>VidantaMap</strong>
       <span>Resort walking directions</span>
     </div>
+    <button id="collapse-btn" type="button" title="Minimize" aria-label="Minimize search card">▴</button>
   </div>
 
   <div class="picker-grid">
@@ -56,6 +64,7 @@
     <span><i class="lg lg-amenity"></i>Amenities</span>
     <span class="lg-hint">📍 Hold the map to drop a pin</span>
   </div>
+  </div><!-- /topcard-full -->
 </header>
 
 <div id="toast" role="status" aria-live="polite" hidden></div>

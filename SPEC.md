@@ -140,7 +140,10 @@ Pan = mouse drag / one-finger drag. Zoom = wheel / pinch. Markers you add to
 
 - Full-screen map. Top card with **From** / **To** selectors (searchable
   `<select>` or filtered list of `destination:true` nodes, grouped by type),
-  a swap button, and a **Directions** button.
+  a swap button, and a **Directions** button. The card is minimizable: a ▴
+  button collapses it to a one-line "From → To" bar (tap to re-expand), and it
+  auto-collapses when a route is fetched so the map and route fill the screen;
+  the bottom sheet's grabber independently collapses the step list.
 - Draws both routes on the map: **fastest** highlighted (primary color),
   **shortest** as alternate (dashed/秒 secondary) when its path differs. Toggle
   between them by clicking the route summary chips.

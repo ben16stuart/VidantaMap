@@ -70,6 +70,56 @@ html, body {
   margin-bottom: 10px;
 }
 
+#collapse-btn {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: #f2f7f6;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+#collapse-btn:active { transform: translateY(1px); }
+
+/* collapsed top card: a single compact "A → B" bar */
+#topcard-mini {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 2px 2px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+#topcard-mini[hidden] { display: none; }
+.mini-dot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border-radius: 50%;
+  background: var(--route);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.16);
+}
+#mini-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mini-chevron { color: var(--muted); font-size: 12px; }
+#topcard.collapsed { padding: 10px 14px; }
+
 .brand-mark {
   width: 30px;
   height: 30px;

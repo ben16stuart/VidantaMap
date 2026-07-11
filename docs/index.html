@@ -82,6 +82,56 @@ html, body {
   margin-bottom: 10px;
 }
 
+#collapse-btn {
+  margin-left: auto;
+  width: 28px;
+  height: 28px;
+  flex: 0 0 28px;
+  border: 1px solid var(--line);
+  border-radius: 50%;
+  background: #f2f7f6;
+  color: var(--muted);
+  font-size: 13px;
+  line-height: 1;
+  cursor: pointer;
+}
+#collapse-btn:active { transform: translateY(1px); }
+
+/* collapsed top card: a single compact "A → B" bar */
+#topcard-mini {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 2px 2px;
+  border: none;
+  background: none;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--ink);
+  cursor: pointer;
+  text-align: left;
+}
+#topcard-mini[hidden] { display: none; }
+.mini-dot {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 10px;
+  border-radius: 50%;
+  background: var(--route);
+  box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.16);
+}
+#mini-text {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.mini-chevron { color: var(--muted); font-size: 12px; }
+#topcard.collapsed { padding: 10px 14px; }
+
 .brand-mark {
   width: 30px;
   height: 30px;
@@ -475,12 +525,20 @@ html, body {
 
 <!-- Floating top card: From / To / Directions -->
 <header id="topcard" class="card">
+  <button id="topcard-mini" type="button" hidden aria-label="Show route options">
+    <span class="mini-dot" aria-hidden="true"></span>
+    <span id="mini-text">Where to?</span>
+    <span class="mini-chevron" aria-hidden="true">▾</span>
+  </button>
+
+  <div id="topcard-full">
   <div class="brand">
     <span class="brand-mark" aria-hidden="true">V</span>
     <div class="brand-text">
       <strong>VidantaMap</strong>
       <span>Resort walking directions</span>
     </div>
+    <button id="collapse-btn" type="button" title="Minimize" aria-label="Minimize search card">▴</button>
   </div>
 
   <div class="picker-grid">
@@ -518,6 +576,7 @@ html, body {
     <span><i class="lg lg-amenity"></i>Amenities</span>
     <span class="lg-hint">📍 Hold the map to drop a pin</span>
   </div>
+  </div><!-- /topcard-full -->
 </header>
 
 <div id="toast" role="status" aria-live="polite" hidden></div>
@@ -1164,6 +1223,11 @@ module.exports = {
     swap: $('swap-btn'),
     go: $('go-btn'),
     loc: $('loc-btn'),
+    topcard: $('topcard'),
+    topFull: $('topcard-full'),
+    topMini: $('topcard-mini'),
+    miniText: $('mini-text'),
+    collapse: $('collapse-btn'),
     toast: $('toast'),
     sheet: $('sheet'),
     sheetToggle: $('sheet-toggle'),
@@ -1431,6 +1495,32 @@ module.exports = {
     return param;
   }
 
+  /* Display name for a select's current choice ('' when unset). */
+  function sideName(sel) {
+    if (!sel.value) return '';
+    if (sel.value === PIN_VALUE) {
+      return sel === els.from && fromIsLocation ? 'My location' : 'Dropped pin';
+    }
+    return (nodesById[sel.value] || {}).name || sel.value;
+  }
+
+  /* ---------------- top card collapse ---------------- */
+
+  function setTopCollapsed(collapsed) {
+    els.topFull.hidden = collapsed;
+    els.topMini.hidden = !collapsed;
+    els.topcard.classList.toggle('collapsed', collapsed);
+    if (collapsed) updateMiniText();
+  }
+
+  function updateMiniText() {
+    var f = sideName(els.from), t = sideName(els.to);
+    els.miniText.textContent =
+      f && t ? f + ' → ' + t :
+      f ? f + ' → where to?' :
+      'Where to?';
+  }
+
   /* ---------------- destination dots ---------------- */
 
   function drawDestinationDots() {
@@ -1532,6 +1622,8 @@ module.exports = {
   function wireUi() {
     els.go.addEventListener('click', getDirections);
     els.loc.addEventListener('click', useMyLocation);
+    els.collapse.addEventListener('click', function () { setTopCollapsed(true); });
+    els.topMini.addEventListener('click', function () { setTopCollapsed(false); });
 
     els.swap.addEventListener('click', function () {
       var fVal = els.from.value, tVal = els.to.value;
@@ -1609,6 +1701,7 @@ module.exports = {
         updatePins();
         els.sheet.hidden = false;
         els.sheet.classList.remove('collapsed');
+        setTopCollapsed(true);  // get the pickers out of the way of the route
         fitToRoute();
       })
       .catch(function () {
@@ -1707,6 +1800,7 @@ module.exports = {
       dots[i].classList.toggle('selected',
         id === els.from.value || id === els.to.value);
     }
+    updateMiniText();
     updateScaledMarkers();
   }
 

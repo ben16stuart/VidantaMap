@@ -32,6 +32,11 @@
     swap: $('swap-btn'),
     go: $('go-btn'),
     loc: $('loc-btn'),
+    topcard: $('topcard'),
+    topFull: $('topcard-full'),
+    topMini: $('topcard-mini'),
+    miniText: $('mini-text'),
+    collapse: $('collapse-btn'),
     toast: $('toast'),
     sheet: $('sheet'),
     sheetToggle: $('sheet-toggle'),
@@ -299,6 +304,32 @@
     return param;
   }
 
+  /* Display name for a select's current choice ('' when unset). */
+  function sideName(sel) {
+    if (!sel.value) return '';
+    if (sel.value === PIN_VALUE) {
+      return sel === els.from && fromIsLocation ? 'My location' : 'Dropped pin';
+    }
+    return (nodesById[sel.value] || {}).name || sel.value;
+  }
+
+  /* ---------------- top card collapse ---------------- */
+
+  function setTopCollapsed(collapsed) {
+    els.topFull.hidden = collapsed;
+    els.topMini.hidden = !collapsed;
+    els.topcard.classList.toggle('collapsed', collapsed);
+    if (collapsed) updateMiniText();
+  }
+
+  function updateMiniText() {
+    var f = sideName(els.from), t = sideName(els.to);
+    els.miniText.textContent =
+      f && t ? f + ' → ' + t :
+      f ? f + ' → where to?' :
+      'Where to?';
+  }
+
   /* ---------------- destination dots ---------------- */
 
   function drawDestinationDots() {
@@ -400,6 +431,8 @@
   function wireUi() {
     els.go.addEventListener('click', getDirections);
     els.loc.addEventListener('click', useMyLocation);
+    els.collapse.addEventListener('click', function () { setTopCollapsed(true); });
+    els.topMini.addEventListener('click', function () { setTopCollapsed(false); });
 
     els.swap.addEventListener('click', function () {
       var fVal = els.from.value, tVal = els.to.value;
@@ -477,6 +510,7 @@
         updatePins();
         els.sheet.hidden = false;
         els.sheet.classList.remove('collapsed');
+        setTopCollapsed(true);  // get the pickers out of the way of the route
         fitToRoute();
       })
       .catch(function () {
@@ -575,6 +609,7 @@
       dots[i].classList.toggle('selected',
         id === els.from.value || id === els.to.value);
     }
+    updateMiniText();
     updateScaledMarkers();
   }
 
