@@ -62,9 +62,16 @@ render unknown types like `amenity`).
 `config.geo` (optional) calibrates GPS → map pixels for "use my location":
 `{ "topLeft": {lat, lng}, "bottomRight": {lat, lng} }` — the lat/lng of the two
 map-image corners, assuming a north-up map. Linear interpolation is accurate
-enough at resort scale. To calibrate: stand at two known map points far apart,
-read the device GPS at each, and solve the corners (or nudge until the blue
-dot lands where you stand).
+enough at resort scale.
+
+**Tap-to-calibrate (guest app):** when a GPS fix lands off the map, the app
+asks the user to tap the map where they actually are; when it lands in-bounds
+the user has ~15 s to tap the true spot on empty map. One anchor point plus
+`metersPerPixel` and the north-up assumption fully determine both corners.
+The result is saved to the device (`localStorage`, which overrides the shipped
+values on that device) and PUT back to `/api/graph` when the server is
+reachable, fixing it for everyone. The static demo build saves device-side
+only.
 
 ## API contract
 

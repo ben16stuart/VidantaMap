@@ -58,6 +58,11 @@
   var pins = { from: null, to: null };  // dropped-pin map coords per side
   var suppressTap = false;     // swallow the tap that ends a long-press
   var fromIsLocation = false;  // From pin came from device GPS (blue-dot marker)
+  var GEO_STORE_KEY = 'vidantamap-geo-calibration';
+  // pending GPS→map calibration: { lat, lng, soft, expires }
+  // soft=true: dot landed in-bounds, tap-to-correct offered briefly;
+  // soft=false: GPS said out-of-bounds, next tap calibrates (sticky).
+  var pendingCal = null;
 
   /* ---------------- helpers ---------------- */
 
@@ -100,6 +105,11 @@
       .then(function (g) {
         graph = g;
         graph.nodes.forEach(function (n) { nodesById[n.id] = n; });
+        // a calibration done on this device beats the shipped estimate
+        try {
+          var savedGeo = localStorage.getItem(GEO_STORE_KEY);
+          if (savedGeo) graph.config.geo = JSON.parse(savedGeo);
+        } catch (e) { /* private mode etc. — ignore */ }
         setupMap();
         buildSelects();
         wireUi();
@@ -190,6 +200,49 @@
     };
   }
 
+  /* One-point calibration: the user stands at map point (x, y) with GPS
+   * (lat, lng). Combined with the map's meters-per-pixel scale and a
+   * north-up map, that fully determines the corner coordinates. */
+  function geoFromAnchor(lat, lng, x, y) {
+    var mpp = graph.config.metersPerPixel || 1;
+    var latSpan = graph.config.height * mpp / 110540;                       // ° per map height
+    var lngSpan = graph.config.width * mpp / (111320 * Math.cos(lat * Math.PI / 180));
+    var topLat = lat + (y / graph.config.height) * latSpan;
+    var topLng = lng - (x / graph.config.width) * lngSpan;
+    return {
+      comment: 'Calibrated in-app from a GPS fix at a user-tapped map point (north-up assumed).',
+      topLeft: { lat: topLat, lng: topLng },
+      bottomRight: { lat: topLat - latSpan, lng: topLng + lngSpan }
+    };
+  }
+
+  function calibrateAt(p) {
+    var cal = pendingCal;
+    pendingCal = null;
+    hideToast();
+    var x = Math.round(Math.min(Math.max(p.x, 0), graph.config.width));
+    var y = Math.round(Math.min(Math.max(p.y, 0), graph.config.height));
+    graph.config.geo = geoFromAnchor(cal.lat, cal.lng, x, y);
+    try { localStorage.setItem(GEO_STORE_KEY, JSON.stringify(graph.config.geo)); } catch (e) { /* ignore */ }
+    // best effort: persist for everyone when the real server is behind us
+    try {
+      fetch('/api/graph', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(graph)
+      }).catch(function () { /* static demo / offline — device copy still saved */ });
+    } catch (e) { /* ignore */ }
+
+    pins.from = { x: x, y: y };
+    fromIsLocation = true;
+    setPinOption(els.from, '⌖ My location');
+    clearRoute();
+    updatePins();
+    mv.zoomTo(x, y);
+    if (els.to.value) getDirections();
+    else showToast('Map calibrated to your GPS ✓ Starting from your location — now pick a destination.');
+  }
+
   /* True when we're inside a cross-origin iframe whose permissions policy
    * blocks geolocation (e.g. an embedded demo view) — the browser then
    * auto-denies without ever prompting the user. */
@@ -232,12 +285,15 @@
 
     navigator.geolocation.getCurrentPosition(function (pos) {
       done();
-      var p = gpsToMap(pos.coords.latitude, pos.coords.longitude);
+      var lat = pos.coords.latitude, lng = pos.coords.longitude;
+      var p = gpsToMap(lat, lng);
       // tolerate a little GPS drift just past the map edge, then clamp on
       var marginX = graph.config.width * 0.12, marginY = graph.config.height * 0.12;
       if (!p || p.x < -marginX || p.y < -marginY ||
           p.x > graph.config.width + marginX || p.y > graph.config.height + marginY) {
-        showToast('You appear to be outside the resort map, so directions can’t start from your location.', true, 6000);
+        // likely mis-calibrated GPS anchoring — let the user fix it with one tap
+        pendingCal = { lat: lat, lng: lng, soft: false };
+        showToast('Your GPS position lands off this map — the map’s GPS calibration is probably off. If you are at the resort, tap the map exactly where you are standing and I’ll recalibrate.', true, 0);
         return;
       }
       pins.from = {
@@ -245,12 +301,14 @@
         y: Math.round(Math.min(Math.max(p.y, 0), graph.config.height))
       };
       fromIsLocation = true;
+      // brief window to correct a wrong-but-in-bounds dot with a tap
+      pendingCal = { lat: lat, lng: lng, soft: true, expires: Date.now() + 15000 };
       setPinOption(els.from, '⌖ My location');
       clearRoute();
       updatePins();
       mv.zoomTo(pins.from.x, pins.from.y);
       if (els.to.value) getDirections();
-      else showToast('Starting from your location. Now pick a destination.');
+      else showToast('Starting from your location. Blue dot in the wrong spot? Tap the map where you actually are to fix it.', false, 8000);
     }, function (err) {
       done();
       var msg;
@@ -373,6 +431,21 @@
       var d = Math.hypot(n.x - p.x, n.y - p.y);
       if (d < hitRadius && d < bestD) { best = n; bestD = d; }
     });
+
+    if (pendingCal) {
+      if (pendingCal.expires && Date.now() > pendingCal.expires) {
+        pendingCal = null;                    // correction window closed
+      } else if (!pendingCal.soft) {
+        calibrateAt(p);                       // out-of-bounds fix: any tap calibrates
+        return;
+      } else if (!best) {
+        calibrateAt(p);                       // wrong-spot fix: taps on empty map calibrate
+        return;
+      } else {
+        pendingCal = null;                    // they picked a destination instead
+      }
+    }
+
     if (!best) return;
 
     if (!els.from.value || (els.from.value && els.to.value)) {

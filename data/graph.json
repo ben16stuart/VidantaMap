@@ -11,7 +11,7 @@
       "stairs": 0.6
     },
     "geo": {
-      "comment": "GPS calibration: lat/lng of the map image top-left and bottom-right corners (north-up). Approximate — adjust with two known GPS readings on site.",
+      "comment": "GPS calibration: lat/lng of the map image top-left and bottom-right corners (north-up). Approximate — tap-calibrate in the guest app on site (see SPEC.md) or adjust by hand.",
       "topLeft": {
         "lat": 20.7019,
         "lng": -105.2971
