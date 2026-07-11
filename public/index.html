@@ -67,15 +67,26 @@
   </div><!-- /topcard-full -->
 </header>
 
+<!-- POI category toggles -->
+<div id="filters" role="group" aria-label="Show or hide place types">
+  <button type="button" class="filter-chip" data-type="hotel"><i class="lg lg-hotel"></i>Hotels</button>
+  <button type="button" class="filter-chip" data-type="restaurant"><i class="lg lg-restaurant"></i>Dining</button>
+  <button type="button" class="filter-chip" data-type="bar"><i class="lg lg-bar"></i>Bars</button>
+  <button type="button" class="filter-chip" data-type="pool"><i class="lg lg-pool"></i>Pools</button>
+  <button type="button" class="filter-chip" data-type="amenity"><i class="lg lg-amenity"></i>More</button>
+</div>
+
 <div id="toast" role="status" aria-live="polite" hidden></div>
 
 <!-- Bottom sheet: route options + turn-by-turn -->
 <section id="sheet" class="card" hidden aria-label="Directions">
   <button id="sheet-toggle" type="button" aria-label="Expand or collapse directions">
     <span class="grabber"></span>
+    <span class="grabber-hint">tap to show / hide steps</span>
   </button>
   <div class="sheet-head">
     <div id="chips" class="chips" role="tablist" aria-label="Route options"></div>
+    <button id="reverse-btn" type="button" title="Reverse route" aria-label="Reverse route">⇅</button>
     <button id="sheet-close" type="button" title="Clear route" aria-label="Clear route">✕</button>
   </div>
   <div id="route-summary" class="route-summary"></div>

@@ -37,6 +37,8 @@
     topMini: $('topcard-mini'),
     miniText: $('mini-text'),
     collapse: $('collapse-btn'),
+    filters: $('filters'),
+    reverse: $('reverse-btn'),
     toast: $('toast'),
     sheet: $('sheet'),
     sheetToggle: $('sheet-toggle'),
@@ -59,6 +61,10 @@
   var suppressTap = false;     // swallow the tap that ends a long-press
   var fromIsLocation = false;  // From pin came from device GPS (blue-dot marker)
   var GEO_STORE_KEY = 'vidantamap-geo-calibration';
+  var typeVisible = { hotel: true, restaurant: true, bar: true, pool: true, amenity: true };
+  function isTypeVisible(type) {
+    return typeVisible[type] !== undefined ? typeVisible[type] : typeVisible.amenity;
+  }
   // pending GPS→map calibration: { lat, lng, soft, expires }
   // soft=true: dot landed in-bounds, tap-to-correct offered briefly;
   // soft=false: GPS said out-of-bounds, next tap calibrates (sticky).
@@ -113,6 +119,7 @@
         setupMap();
         buildSelects();
         wireUi();
+        wireFilters();
       })
       .catch(function () {
         showToast('Could not load the resort map. Please check the connection and refresh.', true, 0);
@@ -398,6 +405,7 @@
       g.dataset.my = n.y;
       g.dataset.nodeId = n.id;
 
+      g.dataset.nodeType = TYPE_LABELS[n.type] ? n.type : 'amenity';
       var core = MapView.el('circle', {
         'class': 'dot-core', cx: 0, cy: 0, r: 5.5, fill: typeColor(n.type)
       });
@@ -407,6 +415,39 @@
       g.appendChild(label);
       gDots.appendChild(g);
     });
+  }
+
+  /* ---------------- POI category filters ---------------- */
+
+  function applyTypeFilters() {
+    var dots = gDots.querySelectorAll('.dot');
+    for (var i = 0; i < dots.length; i++) {
+      var g = dots[i];
+      var show = typeVisible[g.dataset.nodeType];
+      // keep the current From/To visible even if its category is off
+      var id = g.dataset.nodeId;
+      if (id === els.from.value || id === els.to.value) show = true;
+      g.style.display = show ? '' : 'none';
+    }
+  }
+
+  function wireFilters() {
+    var chips = els.filters.querySelectorAll('.filter-chip');
+    chips.forEach(function (chip) {
+      chip.addEventListener('click', function () {
+        var t = chip.dataset.type;
+        typeVisible[t] = !typeVisible[t];
+        chip.classList.toggle('off', !typeVisible[t]);
+        applyTypeFilters();
+      });
+    });
+    // pin the chip row just below the (resizable) top card
+    function placeFilters() {
+      els.filters.style.top = (els.topcard.getBoundingClientRect().bottom + 8) + 'px';
+    }
+    if (window.ResizeObserver) new ResizeObserver(placeFilters).observe(els.topcard);
+    window.addEventListener('resize', placeFilters);
+    placeFilters();
   }
 
   /* Keep dots/pins constant size on screen: counter-scale by 1/mv.scale. */
@@ -428,6 +469,7 @@
     var best = null, bestD = Infinity;
     graph.nodes.forEach(function (n) {
       if (!n.destination) return;
+      if (!isTypeVisible(TYPE_LABELS[n.type] ? n.type : 'amenity')) return; // hidden category
       var d = Math.hypot(n.x - p.x, n.y - p.y);
       if (d < hitRadius && d < bestD) { best = n; bestD = d; }
     });
@@ -507,7 +549,7 @@
     els.collapse.addEventListener('click', function () { setTopCollapsed(true); });
     els.topMini.addEventListener('click', function () { setTopCollapsed(false); });
 
-    els.swap.addEventListener('click', function () {
+    function swapEndpoints() {
       var fVal = els.from.value, tVal = els.to.value;
       var tmpPin = pins.from;
       pins.from = pins.to;
@@ -521,7 +563,9 @@
       if (route && els.from.value && els.to.value) {
         getDirections();
       }
-    });
+    }
+    els.swap.addEventListener('click', swapEndpoints);
+    els.reverse.addEventListener('click', swapEndpoints);
 
     [els.from, els.to].forEach(function (sel) {
       sel.addEventListener('change', function () {
@@ -537,6 +581,10 @@
     });
 
     els.sheetToggle.addEventListener('click', function () {
+      els.sheet.classList.toggle('collapsed');
+    });
+    // the summary line is also a toggle — a bigger target than the grabber
+    els.summary.addEventListener('click', function () {
       els.sheet.classList.toggle('collapsed');
     });
     els.sheetClose.addEventListener('click', function () {
@@ -683,6 +731,7 @@
         id === els.from.value || id === els.to.value);
     }
     updateMiniText();
+    applyTypeFilters();
     updateScaledMarkers();
   }
 

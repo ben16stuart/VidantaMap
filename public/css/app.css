@@ -326,18 +326,79 @@ html, body {
 #sheet-toggle {
   border: none;
   background: transparent;
-  padding: 8px 0 4px;
+  padding: 10px 0 6px;
   cursor: pointer;
   width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
 }
 .grabber {
   display: block;
-  width: 42px;
-  height: 4.5px;
+  width: 56px;
+  height: 5.5px;
   border-radius: 3px;
-  background: #cddad6;
-  margin: 0 auto;
+  background: #b9cbc6;
 }
+.grabber-hint {
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  color: var(--muted);
+}
+
+#reverse-btn {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: #eef3f2;
+  color: var(--brand);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+}
+#reverse-btn:active { background: #dfe9e6; }
+
+/* POI category filter chips */
+#filters {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  max-width: 400px;
+  margin: 0 auto;
+  z-index: 19;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px;
+}
+#filters::-webkit-scrollbar { display: none; }
+.filter-chip {
+  flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 999px;
+  background: var(--card);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: 0 2px 8px rgba(9, 45, 39, 0.14);
+  color: var(--ink);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  padding: 6px 11px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.filter-chip .lg { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.filter-chip.off { opacity: 0.45; }
+.filter-chip.off .lg { background: #9aa9a5; }
 
 .sheet-head {
   display: flex;
