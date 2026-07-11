@@ -1,0 +1,440 @@
+/* VidantaMap — guest UI styles. Self-contained, no external assets. */
+
+:root {
+  --brand: #0b6b5d;          /* deep resort teal */
+  --brand-dark: #08544a;
+  --ink: #17342f;
+  --muted: #5f7a74;
+  --card: rgba(255, 255, 255, 0.94);
+  --line: #e3ecea;
+  --route: #4f46e5;          /* primary route indigo */
+  --route-alt: #64748b;
+  --start: #16a34a;
+  --end: #dc2626;
+  --hotel: #6d5bd0;
+  --restaurant: #d97706;
+  --pool: #0284c7;
+  --amenity: #0b8a6d;
+  --radius: 18px;
+  --shadow: 0 8px 28px rgba(9, 45, 39, 0.16), 0 2px 6px rgba(9, 45, 39, 0.10);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  height: 100%;
+  overflow: hidden;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  color: var(--ink);
+  background: #bfe6da;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ---------- map ---------- */
+
+#map {
+  position: fixed;
+  inset: 0;
+  background: #bfe6da;
+}
+
+/* ---------- shared card ---------- */
+
+.card {
+  background: var(--card);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+}
+
+/* ---------- top card ---------- */
+
+#topcard {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top, 0px));
+  left: 12px;
+  right: 12px;
+  max-width: 400px;
+  margin: 0 auto;
+  padding: 12px 14px 11px;
+  z-index: 20;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-bottom: 10px;
+}
+
+.brand-mark {
+  width: 30px;
+  height: 30px;
+  flex: 0 0 30px;
+  border-radius: 10px;
+  background: linear-gradient(145deg, var(--brand), #0d8a76);
+  color: #fff;
+  font-weight: 700;
+  font-size: 17px;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 2px 6px rgba(11, 107, 93, 0.35);
+}
+
+.brand-text { display: flex; flex-direction: column; line-height: 1.15; }
+.brand-text strong { font-size: 15px; letter-spacing: 0.2px; }
+.brand-text span { font-size: 11px; color: var(--muted); }
+
+.picker-grid {
+  display: flex;
+  align-items: stretch;
+  gap: 10px;
+}
+
+.picker-rail {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 15px 0;
+  width: 12px;
+  flex: 0 0 12px;
+}
+
+.rail-dot { width: 9px; height: 9px; border-radius: 50%; flex: 0 0 auto; }
+.rail-start { background: var(--start); box-shadow: 0 0 0 3px rgba(22, 163, 74, 0.18); }
+.rail-end { background: var(--end); box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.16); }
+.rail-line { flex: 1; width: 2px; margin: 3px 0; background: repeating-linear-gradient(to bottom, #b7c9c5 0 3px, transparent 3px 7px); }
+
+.picker-fields {
+  flex: 1;
+  min-width: 0;
+  background: #f2f7f6;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 2px 10px;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 38px;
+}
+
+.field-label {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--muted);
+  width: 34px;
+  flex: 0 0 34px;
+}
+
+.field select {
+  flex: 1;
+  min-width: 0;
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+  padding: 6px 0;
+  outline: none;
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml;charset=utf8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%235f7a74' stroke-width='1.6' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 2px center;
+  padding-right: 18px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  overflow: hidden;
+  cursor: pointer;
+}
+
+.field-divider { height: 1px; background: var(--line); margin-left: 42px; }
+
+#swap-btn {
+  flex: 0 0 40px;
+  align-self: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--brand);
+  font-size: 18px;
+  cursor: pointer;
+  box-shadow: 0 1px 3px rgba(9, 45, 39, 0.08);
+  transition: background 0.15s, transform 0.15s;
+}
+#swap-btn:active { transform: scale(0.94); background: #eef5f3; }
+
+#go-btn {
+  width: 100%;
+  margin-top: 10px;
+  padding: 11px 16px;
+  border: none;
+  border-radius: 13px;
+  background: linear-gradient(145deg, var(--brand), #0d8a76);
+  color: #fff;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  box-shadow: 0 4px 12px rgba(11, 107, 93, 0.32);
+  transition: filter 0.15s, transform 0.1s;
+}
+#go-btn:active { transform: translateY(1px); }
+#go-btn:disabled { filter: grayscale(0.4) opacity(0.7); cursor: default; }
+
+.legend {
+  display: flex;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 9px;
+  font-size: 10.5px;
+  color: var(--muted);
+}
+.legend span { display: inline-flex; align-items: center; gap: 4px; white-space: nowrap; }
+.lg { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.lg-hotel { background: var(--hotel); }
+.lg-restaurant { background: var(--restaurant); }
+.lg-pool { background: var(--pool); }
+.lg-amenity { background: var(--amenity); }
+
+/* ---------- toast ---------- */
+
+#toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  z-index: 40;
+  max-width: min(92vw, 380px);
+  background: rgba(23, 52, 47, 0.94);
+  color: #fff;
+  font-size: 13.5px;
+  line-height: 1.4;
+  padding: 11px 16px;
+  border-radius: 13px;
+  box-shadow: var(--shadow);
+  text-align: center;
+  animation: toast-in 0.22s ease-out;
+}
+#toast.error { background: rgba(153, 27, 27, 0.95); }
+@keyframes toast-in {
+  from { opacity: 0; transform: translateX(-50%) translateY(8px); }
+  to   { opacity: 1; transform: translateX(-50%) translateY(0); }
+}
+
+/* ---------- bottom sheet ---------- */
+
+#sheet {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  max-width: 480px;
+  margin: 0 auto;
+  z-index: 30;
+  border-bottom-left-radius: 0;
+  border-bottom-right-radius: 0;
+  padding: 2px 16px calc(12px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  max-height: 48vh;
+  animation: sheet-in 0.25s ease-out;
+}
+@keyframes sheet-in {
+  from { transform: translateY(30px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+
+#sheet-toggle {
+  border: none;
+  background: transparent;
+  padding: 8px 0 4px;
+  cursor: pointer;
+  width: 100%;
+}
+.grabber {
+  display: block;
+  width: 42px;
+  height: 4.5px;
+  border-radius: 3px;
+  background: #cddad6;
+  margin: 0 auto;
+}
+
+.sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.chips {
+  display: flex;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
+  padding: 2px 0;
+}
+.chips::-webkit-scrollbar { display: none; }
+
+.chip {
+  flex: 0 0 auto;
+  border: 1.5px solid var(--line);
+  background: #f2f7f6;
+  color: var(--ink);
+  border-radius: 999px;
+  padding: 7px 13px;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.chip .chip-kind { font-weight: 800; }
+.chip.active {
+  background: var(--route);
+  border-color: var(--route);
+  color: #fff;
+  box-shadow: 0 3px 10px rgba(79, 70, 229, 0.35);
+}
+.chip:not(.active) .chip-kind { color: var(--route); }
+
+#sheet-close {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: none;
+  background: #eef3f2;
+  color: var(--muted);
+  font-size: 13px;
+  cursor: pointer;
+}
+#sheet-close:active { background: #dfe9e6; }
+
+.route-summary {
+  margin: 10px 2px 2px;
+  font-size: 21px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+}
+.route-summary small {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--muted);
+  display: block;
+  margin-top: 2px;
+}
+
+.steps {
+  list-style: none;
+  margin-top: 8px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 4px;
+}
+
+.steps li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 9px 2px;
+  border-bottom: 1px solid var(--line);
+  font-size: 14px;
+}
+.steps li:last-child { border-bottom: none; }
+
+.step-icon {
+  flex: 0 0 30px;
+  width: 30px;
+  height: 30px;
+  border-radius: 10px;
+  background: #eef1ff;
+  color: var(--route);
+  display: grid;
+  place-items: center;
+  font-size: 16px;
+  font-weight: 700;
+}
+.steps li.arrive .step-icon { background: #fdeaea; color: var(--end); }
+
+.step-text { flex: 1; min-width: 0; }
+.step-dist { flex: 0 0 auto; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+
+/* collapsed: keep grabber + chips visible, hide details */
+#sheet.collapsed .route-summary,
+#sheet.collapsed .steps { display: none; }
+
+/* ---------- SVG map overlay styles ---------- */
+
+.route-casing {
+  fill: none;
+  stroke: #ffffff;
+  stroke-width: 9;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.9;
+}
+.route-primary {
+  fill: none;
+  stroke: var(--route);
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+.route-alt {
+  fill: none;
+  stroke: var(--route-alt);
+  stroke-width: 4;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 2 10;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.95;
+}
+
+.dot circle.dot-core { stroke: #ffffff; stroke-width: 2; }
+.dot { cursor: pointer; }
+.dot-label {
+  font-family: inherit;
+  font-size: 10.5px;
+  font-weight: 600;
+  fill: #234b44;
+  stroke: rgba(255, 255, 255, 0.92);
+  stroke-width: 3;
+  paint-order: stroke;
+  text-anchor: middle;
+  pointer-events: none;
+}
+.labels-hidden .dot-label { display: none; }
+.dot.selected circle.dot-core { stroke-width: 2.5; }
+
+.pin-shadow { fill: rgba(9, 45, 39, 0.25); }
+
+/* ---------- small screens ---------- */
+
+@media (max-width: 419px) {
+  #topcard { left: 8px; right: 8px; }
+  .legend span { font-size: 10px; }
+}
+
+/* short screens: tighter top card */
+@media (max-height: 640px) {
+  .brand { margin-bottom: 6px; }
+  #sheet { max-height: 42vh; }
+}

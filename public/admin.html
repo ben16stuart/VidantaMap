@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>VidantaMap Admin — Graph Editor</title>
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🛠️</text></svg>">
+  <link rel="stylesheet" href="/css/admin.css">
+</head>
+<body>
+  <header id="topbar">
+    <div class="brand">VidantaMap <span>Admin</span></div>
+
+    <div class="toolbar" role="toolbar" aria-label="Editor modes">
+      <button type="button" class="mode-btn" data-mode="select" aria-pressed="true">Select / Move</button>
+      <button type="button" class="mode-btn" data-mode="add-location" aria-pressed="false">Add Location</button>
+      <button type="button" class="mode-btn" data-mode="add-junction" aria-pressed="false">Add Junction</button>
+      <button type="button" class="mode-btn" data-mode="draw-path" aria-pressed="false">Draw Path</button>
+      <button type="button" class="mode-btn" data-mode="delete" aria-pressed="false">Delete</button>
+      <label class="pathtype-picker" id="pathTypeWrap" title="Path type used by Draw Path">
+        <span>Path:</span>
+        <select id="pathTypeSelect">
+          <option value="boardwalk">boardwalk</option>
+          <option value="paved">paved</option>
+          <option value="trail">trail</option>
+          <option value="stairs">stairs</option>
+        </select>
+      </label>
+    </div>
+
+    <div class="topbar-right">
+      <span id="dirtyBadge" hidden>Unsaved changes</span>
+      <button type="button" id="reloadBtn">Reload</button>
+      <button type="button" id="saveBtn" class="primary">Save</button>
+    </div>
+  </header>
+
+  <main id="layout">
+    <div id="map" class="mode-select">
+      <div id="legend">
+        <div class="legend-title">Paths</div>
+        <div class="legend-row"><span class="swatch line boardwalk"></span>boardwalk</div>
+        <div class="legend-row"><span class="swatch line paved"></span>paved</div>
+        <div class="legend-row"><span class="swatch line trail"></span>trail</div>
+        <div class="legend-row"><span class="swatch line stairs"></span>stairs</div>
+        <div class="legend-title">Nodes</div>
+        <div class="legend-row"><span class="swatch dot hotel"></span>hotel</div>
+        <div class="legend-row"><span class="swatch dot restaurant"></span>restaurant</div>
+        <div class="legend-row"><span class="swatch dot pool"></span>pool</div>
+        <div class="legend-row"><span class="swatch dot amenity"></span>amenity</div>
+        <div class="legend-row"><span class="swatch dot junction"></span>junction</div>
+      </div>
+      <div id="toast" hidden></div>
+    </div>
+
+    <aside id="panel">
+      <div id="modeHint" class="mode-hint"></div>
+      <div id="panelStats" class="panel-stats"></div>
+
+      <section id="panelEmpty">
+        <p class="muted">Nothing selected.</p>
+        <p class="muted small">In Select / Move mode, click a node or an edge to inspect it, or drag a node to reposition it.</p>
+      </section>
+
+      <section id="panelNode" hidden>
+        <h2>Node</h2>
+        <label class="field">ID
+          <input id="fId" type="text" disabled>
+        </label>
+        <label class="field">Name
+          <input id="fName" type="text" autocomplete="off">
+        </label>
+        <label class="field">Type
+          <select id="fType">
+            <option value="hotel">hotel</option>
+            <option value="restaurant">restaurant</option>
+            <option value="pool">pool</option>
+            <option value="amenity">amenity</option>
+            <option value="junction">junction</option>
+          </select>
+        </label>
+        <label class="field check">
+          <input id="fDest" type="checkbox">
+          <span>Destination (selectable in guest app)</span>
+        </label>
+        <div class="coords">
+          <label class="field">X <input id="fX" type="number" step="1"></label>
+          <label class="field">Y <input id="fY" type="number" step="1"></label>
+        </div>
+        <button type="button" id="fDeleteNode" class="danger">Delete node</button>
+      </section>
+
+      <section id="panelEdge" hidden>
+        <h2>Edge</h2>
+        <label class="field">ID
+          <input id="eId" type="text" disabled>
+        </label>
+        <div class="field-static" id="eEndpoints"></div>
+        <div class="field-static" id="eLength"></div>
+        <label class="field">Path type
+          <select id="ePathType">
+            <option value="boardwalk">boardwalk</option>
+            <option value="paved">paved</option>
+            <option value="trail">trail</option>
+            <option value="stairs">stairs</option>
+          </select>
+        </label>
+        <button type="button" id="eDeleteEdge" class="danger">Delete edge</button>
+      </section>
+    </aside>
+  </main>
+
+  <script src="/js/mapview.js"></script>
+  <script src="/js/admin.js"></script>
+</body>
+</html>

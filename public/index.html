@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>VidantaMap — Resort Walking Directions</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🗺️</text></svg>">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+
+<div id="map" aria-label="Resort map"></div>
+
+<!-- Floating top card: From / To / Directions -->
+<header id="topcard" class="card">
+  <div class="brand">
+    <span class="brand-mark" aria-hidden="true">V</span>
+    <div class="brand-text">
+      <strong>VidantaMap</strong>
+      <span>Resort walking directions</span>
+    </div>
+  </div>
+
+  <div class="picker-grid">
+    <div class="picker-rail" aria-hidden="true">
+      <span class="rail-dot rail-start"></span>
+      <span class="rail-line"></span>
+      <span class="rail-dot rail-end"></span>
+    </div>
+    <div class="picker-fields">
+      <label class="field">
+        <span class="field-label">From</span>
+        <select id="from-select" aria-label="Starting point">
+          <option value="">Choose a starting point…</option>
+        </select>
+      </label>
+      <div class="field-divider"></div>
+      <label class="field">
+        <span class="field-label">To</span>
+        <select id="to-select" aria-label="Destination">
+          <option value="">Choose a destination…</option>
+        </select>
+      </label>
+    </div>
+    <button id="swap-btn" type="button" title="Swap from and to" aria-label="Swap from and to">⇅</button>
+  </div>
+
+  <button id="go-btn" type="button">Get Directions</button>
+
+  <div class="legend" aria-hidden="true">
+    <span><i class="lg lg-hotel"></i>Hotels</span>
+    <span><i class="lg lg-restaurant"></i>Dining</span>
+    <span><i class="lg lg-pool"></i>Pools</span>
+    <span><i class="lg lg-amenity"></i>Amenities</span>
+  </div>
+</header>
+
+<div id="toast" role="status" aria-live="polite" hidden></div>
+
+<!-- Bottom sheet: route options + turn-by-turn -->
+<section id="sheet" class="card" hidden aria-label="Directions">
+  <button id="sheet-toggle" type="button" aria-label="Expand or collapse directions">
+    <span class="grabber"></span>
+  </button>
+  <div class="sheet-head">
+    <div id="chips" class="chips" role="tablist" aria-label="Route options"></div>
+    <button id="sheet-close" type="button" title="Clear route" aria-label="Clear route">✕</button>
+  </div>
+  <div id="route-summary" class="route-summary"></div>
+  <ol id="steps" class="steps"></ol>
+</section>
+
+<script src="/js/mapview.js"></script>
+<script src="/js/app.js"></script>
+</body>
+</html>

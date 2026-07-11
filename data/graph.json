@@ -7,115 +7,718 @@
     "walkSpeeds": {
       "boardwalk": 1.4,
       "paved": 1.5,
-      "trail": 1.0,
+      "trail": 1,
       "stairs": 0.6
     }
   },
   "nodes": [
-    { "id": "mayan-palace", "name": "Mayan Palace", "type": "hotel", "x": 218, "y": 232, "destination": true },
-    { "id": "grand-mayan-1", "name": "The Grand Mayan Tower 1", "type": "hotel", "x": 292, "y": 232, "destination": true },
-    { "id": "grand-mayan-2", "name": "The Grand Mayan Tower 2", "type": "hotel", "x": 440, "y": 226, "destination": true },
-    { "id": "grand-mayan-3", "name": "The Grand Mayan Tower 3", "type": "hotel", "x": 500, "y": 352, "destination": true },
-    { "id": "grand-bliss", "name": "The Grand Bliss", "type": "hotel", "x": 605, "y": 448, "destination": true },
-    { "id": "grand-luxxe-1", "name": "Grand Luxxe Tower 1", "type": "hotel", "x": 588, "y": 608, "destination": true },
-    { "id": "luxxe-residence", "name": "Grand Luxxe Residence", "type": "hotel", "x": 1148, "y": 478, "destination": true },
-    { "id": "luxxe-loft", "name": "Grand Luxxe Loft", "type": "hotel", "x": 882, "y": 752, "destination": true },
-    { "id": "estates-north", "name": "The Estates North", "type": "hotel", "x": 764, "y": 838, "destination": true },
-    { "id": "estates-1", "name": "The Estates Tower 1", "type": "hotel", "x": 712, "y": 1066, "destination": true },
-    { "id": "estates-2", "name": "The Estates Tower 2", "type": "hotel", "x": 684, "y": 1132, "destination": true },
-    { "id": "beach-club", "name": "Beach Club & Ocean Pool", "type": "pool", "x": 300, "y": 560, "destination": true },
-    { "id": "mayan-pool", "name": "Grand Mayan Lazy River Pool", "type": "pool", "x": 370, "y": 300, "destination": true },
-    { "id": "kids-pool", "name": "Aqua Park (Kids Splash Zone)", "type": "pool", "x": 255, "y": 420, "destination": true },
-    { "id": "spa", "name": "Spa & Wellness Center", "type": "amenity", "x": 650, "y": 680, "destination": true },
-    { "id": "gourmet-plaza", "name": "Gourmet Restaurant Plaza", "type": "restaurant", "x": 640, "y": 545, "destination": true },
-    { "id": "convention", "name": "Convention Center", "type": "amenity", "x": 755, "y": 375, "destination": true },
-    { "id": "golf-club", "name": "Golf Clubhouse", "type": "amenity", "x": 690, "y": 115, "destination": true },
-    { "id": "south-pools", "name": "Estates Pool Complex", "type": "pool", "x": 622, "y": 975, "destination": true },
-    { "id": "lagoon-pool", "name": "Lagoon Pool", "type": "pool", "x": 445, "y": 950, "destination": true },
-    { "id": "tip-pool", "name": "Estates Beach Pool", "type": "pool", "x": 650, "y": 1300, "destination": true },
-    { "id": "sports", "name": "Tennis & Sports Center", "type": "amenity", "x": 105, "y": 75, "destination": true },
-
-    { "id": "j01", "name": "", "type": "junction", "x": 250, "y": 260, "destination": false },
-    { "id": "j02", "name": "", "type": "junction", "x": 350, "y": 250, "destination": false },
-    { "id": "j03", "name": "", "type": "junction", "x": 455, "y": 270, "destination": false },
-    { "id": "j04", "name": "", "type": "junction", "x": 520, "y": 395, "destination": false },
-    { "id": "j05", "name": "", "type": "junction", "x": 560, "y": 480, "destination": false },
-    { "id": "j06", "name": "", "type": "junction", "x": 525, "y": 610, "destination": false },
-    { "id": "j07", "name": "", "type": "junction", "x": 650, "y": 620, "destination": false },
-    { "id": "j08", "name": "", "type": "junction", "x": 695, "y": 800, "destination": false },
-    { "id": "j09", "name": "", "type": "junction", "x": 620, "y": 700, "destination": false },
-    { "id": "j10", "name": "", "type": "junction", "x": 760, "y": 690, "destination": false },
-    { "id": "j11", "name": "", "type": "junction", "x": 1060, "y": 620, "destination": false },
-    { "id": "j12", "name": "", "type": "junction", "x": 950, "y": 700, "destination": false },
-    { "id": "j13", "name": "", "type": "junction", "x": 740, "y": 930, "destination": false },
-    { "id": "j14", "name": "", "type": "junction", "x": 700, "y": 1010, "destination": false },
-    { "id": "j15", "name": "", "type": "junction", "x": 525, "y": 1195, "destination": false },
-    { "id": "j16", "name": "", "type": "junction", "x": 585, "y": 1390, "destination": false },
-    { "id": "j17", "name": "", "type": "junction", "x": 640, "y": 1210, "destination": false },
-    { "id": "j18", "name": "", "type": "junction", "x": 430, "y": 640, "destination": false },
-    { "id": "j19", "name": "", "type": "junction", "x": 415, "y": 790, "destination": false },
-    { "id": "j20", "name": "", "type": "junction", "x": 470, "y": 900, "destination": false },
-    { "id": "j21", "name": "", "type": "junction", "x": 540, "y": 1050, "destination": false },
-    { "id": "j22", "name": "", "type": "junction", "x": 300, "y": 350, "destination": false },
-    { "id": "j23", "name": "", "type": "junction", "x": 585, "y": 330, "destination": false },
-    { "id": "j24", "name": "", "type": "junction", "x": 700, "y": 250, "destination": false },
-    { "id": "j25", "name": "", "type": "junction", "x": 830, "y": 420, "destination": false }
+    {
+      "id": "mayan-palace",
+      "name": "Mayan Palace",
+      "type": "hotel",
+      "x": 218,
+      "y": 232,
+      "destination": true
+    },
+    {
+      "id": "grand-mayan-1",
+      "name": "The Grand Mayan Tower 1",
+      "type": "hotel",
+      "x": 292,
+      "y": 232,
+      "destination": true
+    },
+    {
+      "id": "grand-mayan-2",
+      "name": "The Grand Mayan Tower 2",
+      "type": "hotel",
+      "x": 440,
+      "y": 226,
+      "destination": true
+    },
+    {
+      "id": "grand-mayan-3",
+      "name": "The Grand Mayan Tower 3",
+      "type": "hotel",
+      "x": 500,
+      "y": 352,
+      "destination": true
+    },
+    {
+      "id": "grand-bliss",
+      "name": "The Grand Bliss",
+      "type": "hotel",
+      "x": 605,
+      "y": 448,
+      "destination": true
+    },
+    {
+      "id": "grand-luxxe-1",
+      "name": "Grand Luxxe Tower 1",
+      "type": "hotel",
+      "x": 588,
+      "y": 608,
+      "destination": true
+    },
+    {
+      "id": "luxxe-residence",
+      "name": "Grand Luxxe Residence",
+      "type": "hotel",
+      "x": 1148,
+      "y": 478,
+      "destination": true
+    },
+    {
+      "id": "luxxe-loft",
+      "name": "Grand Luxxe Loft",
+      "type": "hotel",
+      "x": 882,
+      "y": 752,
+      "destination": true
+    },
+    {
+      "id": "estates-north",
+      "name": "The Estates North",
+      "type": "hotel",
+      "x": 764,
+      "y": 838,
+      "destination": true
+    },
+    {
+      "id": "estates-1",
+      "name": "The Estates Tower 1",
+      "type": "hotel",
+      "x": 712,
+      "y": 1066,
+      "destination": true
+    },
+    {
+      "id": "estates-2",
+      "name": "The Estates Tower 2",
+      "type": "hotel",
+      "x": 684,
+      "y": 1132,
+      "destination": true
+    },
+    {
+      "id": "beach-club",
+      "name": "Beach Club & Ocean Pool",
+      "type": "pool",
+      "x": 300,
+      "y": 560,
+      "destination": true
+    },
+    {
+      "id": "mayan-pool",
+      "name": "Grand Mayan Lazy River Pool",
+      "type": "pool",
+      "x": 370,
+      "y": 300,
+      "destination": true
+    },
+    {
+      "id": "kids-pool",
+      "name": "Aqua Park (Kids Splash Zone)",
+      "type": "pool",
+      "x": 255,
+      "y": 420,
+      "destination": true
+    },
+    {
+      "id": "spa",
+      "name": "Spa & Wellness Center",
+      "type": "amenity",
+      "x": 650,
+      "y": 680,
+      "destination": true
+    },
+    {
+      "id": "gourmet-plaza",
+      "name": "Gourmet Restaurant Plaza",
+      "type": "restaurant",
+      "x": 640,
+      "y": 545,
+      "destination": true
+    },
+    {
+      "id": "convention",
+      "name": "Convention Center",
+      "type": "amenity",
+      "x": 755,
+      "y": 375,
+      "destination": true
+    },
+    {
+      "id": "golf-club",
+      "name": "Golf Clubhouse",
+      "type": "amenity",
+      "x": 690,
+      "y": 115,
+      "destination": true
+    },
+    {
+      "id": "south-pools",
+      "name": "Estates Pool Complex",
+      "type": "pool",
+      "x": 622,
+      "y": 975,
+      "destination": true
+    },
+    {
+      "id": "lagoon-pool",
+      "name": "Lagoon Pool",
+      "type": "pool",
+      "x": 445,
+      "y": 950,
+      "destination": true
+    },
+    {
+      "id": "tip-pool",
+      "name": "Estates Beach Pool",
+      "type": "pool",
+      "x": 650,
+      "y": 1300,
+      "destination": true
+    },
+    {
+      "id": "sports",
+      "name": "Tennis & Sports Center",
+      "type": "amenity",
+      "x": 105,
+      "y": 75,
+      "destination": true
+    },
+    {
+      "id": "j01",
+      "name": "",
+      "type": "junction",
+      "x": 250,
+      "y": 260,
+      "destination": false
+    },
+    {
+      "id": "j02",
+      "name": "",
+      "type": "junction",
+      "x": 350,
+      "y": 250,
+      "destination": false
+    },
+    {
+      "id": "j03",
+      "name": "",
+      "type": "junction",
+      "x": 455,
+      "y": 270,
+      "destination": false
+    },
+    {
+      "id": "j04",
+      "name": "",
+      "type": "junction",
+      "x": 520,
+      "y": 395,
+      "destination": false
+    },
+    {
+      "id": "j05",
+      "name": "",
+      "type": "junction",
+      "x": 560,
+      "y": 480,
+      "destination": false
+    },
+    {
+      "id": "j06",
+      "name": "",
+      "type": "junction",
+      "x": 525,
+      "y": 610,
+      "destination": false
+    },
+    {
+      "id": "j07",
+      "name": "",
+      "type": "junction",
+      "x": 650,
+      "y": 620,
+      "destination": false
+    },
+    {
+      "id": "j08",
+      "name": "",
+      "type": "junction",
+      "x": 695,
+      "y": 800,
+      "destination": false
+    },
+    {
+      "id": "j09",
+      "name": "",
+      "type": "junction",
+      "x": 620,
+      "y": 700,
+      "destination": false
+    },
+    {
+      "id": "j10",
+      "name": "",
+      "type": "junction",
+      "x": 760,
+      "y": 690,
+      "destination": false
+    },
+    {
+      "id": "j11",
+      "name": "",
+      "type": "junction",
+      "x": 1060,
+      "y": 620,
+      "destination": false
+    },
+    {
+      "id": "j12",
+      "name": "",
+      "type": "junction",
+      "x": 950,
+      "y": 700,
+      "destination": false
+    },
+    {
+      "id": "j13",
+      "name": "",
+      "type": "junction",
+      "x": 740,
+      "y": 930,
+      "destination": false
+    },
+    {
+      "id": "j14",
+      "name": "",
+      "type": "junction",
+      "x": 700,
+      "y": 1010,
+      "destination": false
+    },
+    {
+      "id": "j15",
+      "name": "",
+      "type": "junction",
+      "x": 525,
+      "y": 1195,
+      "destination": false
+    },
+    {
+      "id": "j16",
+      "name": "",
+      "type": "junction",
+      "x": 585,
+      "y": 1390,
+      "destination": false
+    },
+    {
+      "id": "j17",
+      "name": "",
+      "type": "junction",
+      "x": 640,
+      "y": 1210,
+      "destination": false
+    },
+    {
+      "id": "j18",
+      "name": "",
+      "type": "junction",
+      "x": 430,
+      "y": 640,
+      "destination": false
+    },
+    {
+      "id": "j19",
+      "name": "",
+      "type": "junction",
+      "x": 415,
+      "y": 790,
+      "destination": false
+    },
+    {
+      "id": "j20",
+      "name": "",
+      "type": "junction",
+      "x": 470,
+      "y": 900,
+      "destination": false
+    },
+    {
+      "id": "j21",
+      "name": "",
+      "type": "junction",
+      "x": 540,
+      "y": 1050,
+      "destination": false
+    },
+    {
+      "id": "j22",
+      "name": "",
+      "type": "junction",
+      "x": 300,
+      "y": 350,
+      "destination": false
+    },
+    {
+      "id": "j23",
+      "name": "",
+      "type": "junction",
+      "x": 585,
+      "y": 330,
+      "destination": false
+    },
+    {
+      "id": "j24",
+      "name": "",
+      "type": "junction",
+      "x": 700,
+      "y": 250,
+      "destination": false
+    },
+    {
+      "id": "j25",
+      "name": "",
+      "type": "junction",
+      "x": 830,
+      "y": 420,
+      "destination": false
+    }
   ],
   "edges": [
-    { "id": "e01", "from": "mayan-palace", "to": "j01", "pathType": "boardwalk" },
-    { "id": "e02", "from": "j01", "to": "j02", "pathType": "boardwalk" },
-    { "id": "e03", "from": "grand-mayan-1", "to": "j02", "pathType": "boardwalk" },
-    { "id": "e04", "from": "j02", "to": "j03", "pathType": "boardwalk" },
-    { "id": "e05", "from": "grand-mayan-2", "to": "j03", "pathType": "boardwalk" },
-    { "id": "e06", "from": "j03", "to": "j04", "pathType": "boardwalk" },
-    { "id": "e07", "from": "grand-mayan-3", "to": "j04", "pathType": "boardwalk" },
-    { "id": "e08", "from": "j04", "to": "j05", "pathType": "boardwalk" },
-    { "id": "e09", "from": "grand-bliss", "to": "j05", "pathType": "boardwalk" },
-    { "id": "e10", "from": "j05", "to": "gourmet-plaza", "pathType": "boardwalk" },
-    { "id": "e11", "from": "gourmet-plaza", "to": "j07", "pathType": "boardwalk" },
-    { "id": "e12", "from": "j05", "to": "j06", "pathType": "boardwalk" },
-    { "id": "e13", "from": "j06", "to": "grand-luxxe-1", "pathType": "boardwalk" },
-    { "id": "e14", "from": "j06", "to": "j09", "pathType": "boardwalk" },
-    { "id": "e15", "from": "j07", "to": "spa", "pathType": "boardwalk" },
-    { "id": "e16", "from": "j09", "to": "spa", "pathType": "boardwalk" },
-    { "id": "e17", "from": "spa", "to": "j08", "pathType": "boardwalk" },
-    { "id": "e18", "from": "j08", "to": "estates-north", "pathType": "boardwalk" },
-    { "id": "e19", "from": "j08", "to": "j13", "pathType": "boardwalk" },
-    { "id": "e20", "from": "j13", "to": "j14", "pathType": "boardwalk" },
-    { "id": "e21", "from": "j14", "to": "estates-1", "pathType": "boardwalk" },
-    { "id": "e22", "from": "estates-1", "to": "estates-2", "pathType": "boardwalk" },
-    { "id": "e23", "from": "j17", "to": "estates-2", "pathType": "boardwalk" },
-    { "id": "e24", "from": "j14", "to": "south-pools", "pathType": "boardwalk" },
-    { "id": "e25", "from": "south-pools", "to": "j21", "pathType": "boardwalk" },
-    { "id": "e26", "from": "j17", "to": "tip-pool", "pathType": "boardwalk" },
-    { "id": "e27", "from": "j16", "to": "tip-pool", "pathType": "boardwalk" },
-    { "id": "e28", "from": "j15", "to": "j16", "pathType": "boardwalk" },
-    { "id": "e29", "from": "j15", "to": "j17", "pathType": "boardwalk" },
-    { "id": "e30", "from": "j06", "to": "j18", "pathType": "boardwalk" },
-    { "id": "e31", "from": "j18", "to": "beach-club", "pathType": "boardwalk" },
-    { "id": "e32", "from": "j18", "to": "j19", "pathType": "trail" },
-    { "id": "e33", "from": "j19", "to": "j20", "pathType": "trail" },
-    { "id": "e34", "from": "j20", "to": "lagoon-pool", "pathType": "boardwalk" },
-    { "id": "e35", "from": "j20", "to": "j21", "pathType": "boardwalk" },
-    { "id": "e36", "from": "j21", "to": "j15", "pathType": "boardwalk" },
-    { "id": "e37", "from": "j22", "to": "kids-pool", "pathType": "boardwalk" },
-    { "id": "e38", "from": "j22", "to": "j01", "pathType": "boardwalk" },
-    { "id": "e39", "from": "mayan-pool", "to": "j02", "pathType": "boardwalk" },
-    { "id": "e40", "from": "j22", "to": "beach-club", "pathType": "paved" },
-    { "id": "e41", "from": "sports", "to": "j22", "pathType": "paved" },
-    { "id": "e42", "from": "j23", "to": "j04", "pathType": "boardwalk" },
-    { "id": "e43", "from": "j23", "to": "convention", "pathType": "boardwalk" },
-    { "id": "e44", "from": "j23", "to": "j24", "pathType": "boardwalk" },
-    { "id": "e45", "from": "j24", "to": "golf-club", "pathType": "boardwalk" },
-    { "id": "e46", "from": "convention", "to": "j25", "pathType": "boardwalk" },
-    { "id": "e47", "from": "j25", "to": "j11", "pathType": "boardwalk" },
-    { "id": "e48", "from": "j11", "to": "luxxe-residence", "pathType": "boardwalk" },
-    { "id": "e49", "from": "j11", "to": "j12", "pathType": "boardwalk" },
-    { "id": "e50", "from": "j12", "to": "luxxe-loft", "pathType": "boardwalk" },
-    { "id": "e51", "from": "j12", "to": "j10", "pathType": "boardwalk" },
-    { "id": "e52", "from": "j10", "to": "j07", "pathType": "boardwalk" },
-    { "id": "e53", "from": "j10", "to": "j08", "pathType": "boardwalk" },
-    { "id": "e54", "from": "j12", "to": "j13", "pathType": "trail" },
-    { "id": "e55", "from": "grand-bliss", "to": "j23", "pathType": "boardwalk" }
+    {
+      "id": "e01",
+      "from": "mayan-palace",
+      "to": "j01",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e02",
+      "from": "j01",
+      "to": "j02",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e03",
+      "from": "grand-mayan-1",
+      "to": "j02",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e04",
+      "from": "j02",
+      "to": "j03",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e05",
+      "from": "grand-mayan-2",
+      "to": "j03",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e06",
+      "from": "j03",
+      "to": "j04",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e07",
+      "from": "grand-mayan-3",
+      "to": "j04",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e08",
+      "from": "j04",
+      "to": "j05",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e09",
+      "from": "grand-bliss",
+      "to": "j05",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e10",
+      "from": "j05",
+      "to": "gourmet-plaza",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e11",
+      "from": "gourmet-plaza",
+      "to": "j07",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e12",
+      "from": "j05",
+      "to": "j06",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e13",
+      "from": "j06",
+      "to": "grand-luxxe-1",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e14",
+      "from": "j06",
+      "to": "j09",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e15",
+      "from": "j07",
+      "to": "spa",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e16",
+      "from": "j09",
+      "to": "spa",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e17",
+      "from": "spa",
+      "to": "j08",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e18",
+      "from": "j08",
+      "to": "estates-north",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e19",
+      "from": "j08",
+      "to": "j13",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e20",
+      "from": "j13",
+      "to": "j14",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e21",
+      "from": "j14",
+      "to": "estates-1",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e22",
+      "from": "estates-1",
+      "to": "estates-2",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e23",
+      "from": "j17",
+      "to": "estates-2",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e24",
+      "from": "j14",
+      "to": "south-pools",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e25",
+      "from": "south-pools",
+      "to": "j21",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e26",
+      "from": "j17",
+      "to": "tip-pool",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e27",
+      "from": "j16",
+      "to": "tip-pool",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e28",
+      "from": "j15",
+      "to": "j16",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e29",
+      "from": "j15",
+      "to": "j17",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e30",
+      "from": "j06",
+      "to": "j18",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e31",
+      "from": "j18",
+      "to": "beach-club",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e32",
+      "from": "j18",
+      "to": "j19",
+      "pathType": "trail"
+    },
+    {
+      "id": "e33",
+      "from": "j19",
+      "to": "j20",
+      "pathType": "trail"
+    },
+    {
+      "id": "e34",
+      "from": "j20",
+      "to": "lagoon-pool",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e35",
+      "from": "j20",
+      "to": "j21",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e36",
+      "from": "j21",
+      "to": "j15",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e37",
+      "from": "j22",
+      "to": "kids-pool",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e38",
+      "from": "j22",
+      "to": "j01",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e39",
+      "from": "mayan-pool",
+      "to": "j02",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e40",
+      "from": "j22",
+      "to": "beach-club",
+      "pathType": "paved"
+    },
+    {
+      "id": "e41",
+      "from": "sports",
+      "to": "j22",
+      "pathType": "paved"
+    },
+    {
+      "id": "e42",
+      "from": "j23",
+      "to": "j04",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e43",
+      "from": "j23",
+      "to": "convention",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e44",
+      "from": "j23",
+      "to": "j24",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e45",
+      "from": "j24",
+      "to": "golf-club",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e46",
+      "from": "convention",
+      "to": "j25",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e47",
+      "from": "j25",
+      "to": "j11",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e48",
+      "from": "j11",
+      "to": "luxxe-residence",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e49",
+      "from": "j11",
+      "to": "j12",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e50",
+      "from": "j12",
+      "to": "luxxe-loft",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e51",
+      "from": "j12",
+      "to": "j10",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e52",
+      "from": "j10",
+      "to": "j07",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e53",
+      "from": "j10",
+      "to": "j08",
+      "pathType": "boardwalk"
+    },
+    {
+      "id": "e54",
+      "from": "j12",
+      "to": "j13",
+      "pathType": "trail"
+    },
+    {
+      "id": "e55",
+      "from": "grand-bliss",
+      "to": "j23",
+      "pathType": "boardwalk"
+    }
   ]
 }
