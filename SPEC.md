@@ -157,10 +157,13 @@ Pan = mouse drag / one-finger drag. Zoom = wheel / pinch. Markers you add to
 - Bottom sheet/panel: distance, estimated walking time (e.g. "6 min · 420 m"),
   and the turn-by-turn steps list for the selected option.
 - Start/end markers (green/red pin dots). Route should auto-fit in view.
-- "⌖ Use my current location" button: reads device GPS (secure context —
-  HTTPS or localhost — required), converts via `config.geo`, rejects positions
-  beyond ~12% outside the map with a friendly message, then behaves as a From
-  pin rendered as a Google-style blue dot. Auto-routes if To is already set.
+- Follow-me mode (card button + floating ⌖ FAB): `watchPosition` live
+  tracking (secure context required). The Google-style blue dot moves with
+  every fix; the map recenters on it at most every 4 s. Panning by hand
+  pauses auto-centering (tracking continues); tapping ⌖ again re-centers,
+  and tapping while centered stops tracking. The first fix sets From to
+  "My location" (if unset) and auto-routes when To is chosen. Out-of-bounds
+  fixes trigger the tap-to-calibrate flow instead of a dot.
 - Dropped pins: long-press (hold ~0.5 s) anywhere on the map to drop a pin —
   first pin (or a fresh start) becomes From, the next becomes To and routes
   immediately, mirroring the tap-a-dot flow. A dropped pin appears as a

@@ -39,6 +39,7 @@
     collapse: $('collapse-btn'),
     filters: $('filters'),
     reverse: $('reverse-btn'),
+    fab: $('follow-fab'),
     toast: $('toast'),
     sheet: $('sheet'),
     sheetToggle: $('sheet-toggle'),
@@ -139,6 +140,7 @@
     mv.onViewChanged(updateScaledMarkers);
     mv.onClick(handleMapTap);
     bindLongPress();
+    bindPanPausesFollow();
     updateScaledMarkers();
   }
 
@@ -245,6 +247,7 @@
     setPinOption(els.from, '⌖ My location');
     clearRoute();
     updatePins();
+    if (following()) { hadFix = true; ensureLiveDot(x, y); }
     mv.zoomTo(x, y);
     if (els.to.value) getDirections();
     else showToast('Map calibrated to your GPS ✓ Starting from your location — now pick a destination.');
@@ -265,7 +268,116 @@
 
   var MANUAL_TIP = ' You can still set your start manually: press and hold the map where you are.';
 
+  /* Live follow-me tracking: watchPosition keeps the blue dot on your real
+   * position as you walk; the map recenters on you every few seconds until
+   * you pan it yourself (tap ⌖ again to re-center, tap once more to stop). */
+  var watchId = null;         // active geolocation watch
+  var autoCenter = false;     // keep the map centered on the live dot
+  var lastCenter = 0;         // last auto-recenter time (throttled)
+  var liveDot = null;         // the moving blue-dot marker
+  var hadFix = false;         // got at least one usable fix this session
+  var CENTER_EVERY_MS = 4000;
+
+  function following() { return watchId !== null; }
+
+  function ensureLiveDot(x, y) {
+    if (!liveDot) {
+      liveDot = makeLocationDot();
+      mv.overlay.appendChild(liveDot);
+    }
+    liveDot.dataset.mx = x;
+    liveDot.dataset.my = y;
+    updateScaledMarkers();
+  }
+
+  function removeLiveDot() {
+    if (liveDot && liveDot.parentNode) liveDot.parentNode.removeChild(liveDot);
+    liveDot = null;
+  }
+
+  function updateFollowUi() {
+    var fab = els.fab;
+    fab.classList.toggle('active', following() && autoCenter);
+    fab.classList.toggle('paused', following() && !autoCenter);
+    els.loc.textContent = !following() ? '⌖ Follow my location'
+      : autoCenter ? '⌖ Following you — tap to stop'
+      : '⌖ Tap to re-center on me';
+    fab.title = els.loc.textContent.replace('⌖ ', '');
+  }
+
+  function stopFollowing() {
+    if (watchId !== null) navigator.geolocation.clearWatch(watchId);
+    watchId = null;
+    autoCenter = false;
+    hadFix = false;
+    removeLiveDot();
+    updateFollowUi();
+  }
+
+  function onFix(pos) {
+    var lat = pos.coords.latitude, lng = pos.coords.longitude;
+    var p = gpsToMap(lat, lng);
+    var marginX = graph.config.width * 0.12, marginY = graph.config.height * 0.12;
+    if (!p || p.x < -marginX || p.y < -marginY ||
+        p.x > graph.config.width + marginX || p.y > graph.config.height + marginY) {
+      // likely mis-calibrated GPS anchoring — one tap from the user fixes it
+      if (!pendingCal && !hadFix) {
+        pendingCal = { lat: lat, lng: lng, soft: false };
+        showToast('Your GPS position lands off this map — the calibration is probably off. Tap the map exactly where you are standing and I’ll recalibrate.', true, 0);
+      } else if (pendingCal && !pendingCal.soft) {
+        pendingCal.lat = lat; pendingCal.lng = lng;  // keep the freshest fix
+      }
+      return;
+    }
+    var x = Math.round(Math.min(Math.max(p.x, 0), graph.config.width));
+    var y = Math.round(Math.min(Math.max(p.y, 0), graph.config.height));
+    var first = !hadFix;
+    hadFix = true;
+    ensureLiveDot(x, y);
+
+    if (first) {
+      // brief window to correct a wrong-but-in-bounds dot with a tap
+      pendingCal = { lat: lat, lng: lng, soft: true, expires: Date.now() + 15000 };
+      if (!els.from.value || fromIsLocation) {
+        pins.from = { x: x, y: y };
+        fromIsLocation = true;
+        setPinOption(els.from, '⌖ My location');
+        updatePins();
+        if (els.to.value && !route) getDirections();
+      }
+      mv.zoomTo(x, y);
+      lastCenter = Date.now();
+      showToast('Following your location — the blue dot updates as you walk. Wrong spot? Tap the map where you actually are.', false, 7000);
+      return;
+    }
+    if (autoCenter && Date.now() - lastCenter >= CENTER_EVERY_MS) {
+      mv.centerOn(x, y);
+      lastCenter = Date.now();
+    }
+  }
+
+  function onFixError(err) {
+    if (err && err.code === 1) {
+      stopFollowing();
+      var msg = geoBlockedByFrame()
+        ? 'This embedded demo view blocks location access.' + MANUAL_TIP
+        : 'Location permission was denied. On iPhone: Settings → Privacy & Security → Location Services → Safari Websites → While Using.' + MANUAL_TIP;
+      showToast(msg, true, 9000);
+    }
+    // transient errors (timeout / temporarily unavailable): keep watching
+  }
+
   function useMyLocation() {
+    if (following()) {
+      if (!autoCenter) {           // panned away → snap back to me
+        autoCenter = true;
+        if (liveDot) { mv.centerOn(+liveDot.dataset.mx, +liveDot.dataset.my); lastCenter = Date.now(); }
+        updateFollowUi();
+      } else {
+        stopFollowing();
+      }
+      return;
+    }
     if (!navigator.geolocation) {
       showToast('Location is not available in this browser.' + MANUAL_TIP, true, 8000);
       return;
@@ -282,52 +394,27 @@
       showToast('This map has no GPS calibration yet — ask the resort to set it up.', true);
       return;
     }
-    els.loc.disabled = true;
-    els.loc.textContent = 'Locating…';
+    autoCenter = true;
+    watchId = navigator.geolocation.watchPosition(onFix, onFixError, {
+      enableHighAccuracy: true,
+      maximumAge: 2000,
+      timeout: 15000
+    });
+    updateFollowUi();
+  }
 
-    function done() {
-      els.loc.disabled = false;
-      els.loc.textContent = '⌖ Use my current location';
+  /* Panning by hand pauses auto-centering (tracking continues). */
+  function bindPanPausesFollow() {
+    function paused() {
+      if (following() && autoCenter) {
+        autoCenter = false;
+        updateFollowUi();
+      }
     }
-
-    navigator.geolocation.getCurrentPosition(function (pos) {
-      done();
-      var lat = pos.coords.latitude, lng = pos.coords.longitude;
-      var p = gpsToMap(lat, lng);
-      // tolerate a little GPS drift just past the map edge, then clamp on
-      var marginX = graph.config.width * 0.12, marginY = graph.config.height * 0.12;
-      if (!p || p.x < -marginX || p.y < -marginY ||
-          p.x > graph.config.width + marginX || p.y > graph.config.height + marginY) {
-        // likely mis-calibrated GPS anchoring — let the user fix it with one tap
-        pendingCal = { lat: lat, lng: lng, soft: false };
-        showToast('Your GPS position lands off this map — the map’s GPS calibration is probably off. If you are at the resort, tap the map exactly where you are standing and I’ll recalibrate.', true, 0);
-        return;
-      }
-      pins.from = {
-        x: Math.round(Math.min(Math.max(p.x, 0), graph.config.width)),
-        y: Math.round(Math.min(Math.max(p.y, 0), graph.config.height))
-      };
-      fromIsLocation = true;
-      // brief window to correct a wrong-but-in-bounds dot with a tap
-      pendingCal = { lat: lat, lng: lng, soft: true, expires: Date.now() + 15000 };
-      setPinOption(els.from, '⌖ My location');
-      clearRoute();
-      updatePins();
-      mv.zoomTo(pins.from.x, pins.from.y);
-      if (els.to.value) getDirections();
-      else showToast('Starting from your location. Blue dot in the wrong spot? Tap the map where you actually are to fix it.', false, 8000);
-    }, function (err) {
-      done();
-      var msg;
-      if (err && err.code === 1) {
-        msg = geoBlockedByFrame()
-          ? 'This embedded demo view blocks location access.' + MANUAL_TIP
-          : 'Location permission was denied. On iPhone: Settings → Privacy & Security → Location Services → Safari Websites → While Using.' + MANUAL_TIP;
-      } else {
-        msg = 'Could not get your location right now.' + MANUAL_TIP;
-      }
-      showToast(msg, true, 9000);
-    }, { enableHighAccuracy: true, timeout: 12000, maximumAge: 30000 });
+    mv.svg.addEventListener('pointermove', function (e) {
+      if (e.buttons) paused();
+    });
+    mv.svg.addEventListener('wheel', paused);
   }
 
   function setPinOption(sel, label) {
@@ -546,6 +633,17 @@
   function wireUi() {
     els.go.addEventListener('click', getDirections);
     els.loc.addEventListener('click', useMyLocation);
+    els.fab.addEventListener('click', useMyLocation);
+    updateFollowUi();
+
+    // keep the follow button floating just above the directions sheet
+    function placeFab() {
+      var h = els.sheet.hidden ? 0 : els.sheet.getBoundingClientRect().height;
+      els.fab.style.bottom = (h + 16) + 'px';
+    }
+    if (window.ResizeObserver) new ResizeObserver(placeFab).observe(els.sheet);
+    window.addEventListener('resize', placeFab);
+    placeFab();
     els.collapse.addEventListener('click', function () { setTopCollapsed(true); });
     els.topMini.addEventListener('click', function () { setTopCollapsed(false); });
 

@@ -302,6 +302,8 @@ html, body {
 
 /* ---------- bottom sheet ---------- */
 
+#sheet[hidden] { display: none; }
+
 #sheet {
   position: fixed;
   bottom: 0;
@@ -361,6 +363,30 @@ html, body {
   cursor: pointer;
 }
 #reverse-btn:active { background: #dfe9e6; }
+
+/* floating follow-me button */
+#follow-fab {
+  position: fixed;
+  right: 14px;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  z-index: 25;
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: var(--card);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--shadow);
+  color: var(--brand);
+  font-size: 24px;
+  line-height: 1;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, bottom 0.2s;
+}
+#follow-fab.active { background: #2563eb; border-color: #2563eb; color: #fff; }
+#follow-fab.paused { color: #2563eb; }
+#follow-fab:active { transform: scale(0.94); }
 
 /* POI category filter chips */
 #filters {

@@ -79,6 +79,11 @@
       this._setView(0, 0, this.mapW, this.mapH);
     }
 
+    /** Center on a map point without changing the zoom level. */
+    centerOn(x, y) {
+      this._setView(x - this.view.w / 2, y - this.view.h / 2, this.view.w, this.view.h);
+    }
+
     zoomTo(x, y, targetScale) {
       const r = this.svg.getBoundingClientRect();
       const s = targetScale || Math.min(r.width / this.mapW, r.height / this.mapH) * 3;
