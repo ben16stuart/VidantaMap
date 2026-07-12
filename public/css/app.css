@@ -649,6 +649,18 @@ html, body {
   vector-effect: non-scaling-stroke;
   opacity: 0.95;
 }
+/* legs you RIDE (gondola/shuttle): dashed amber over the route line */
+.route-transit {
+  fill: none;
+  stroke: #f59e0b;
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 10 7;
+  vector-effect: non-scaling-stroke;
+}
+.route-transit-gondola { stroke: #db2777; }
+
 /* portion already walked, dimmed like Google Maps */
 .route-traveled {
   fill: none;

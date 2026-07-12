@@ -6,12 +6,13 @@
 (function () {
   'use strict';
 
-  var TYPE_ORDER = ['hotel', 'restaurant', 'bar', 'pool', 'amenity'];
+  var TYPE_ORDER = ['hotel', 'restaurant', 'bar', 'pool', 'station', 'amenity'];
   var TYPE_LABELS = {
     hotel: 'Hotels',
     restaurant: 'Restaurants',
     bar: 'Bars',
     pool: 'Pools',
+    station: 'Shuttle & Gondola',
     amenity: 'Amenities'
   };
   var TYPE_COLORS = {
@@ -19,6 +20,7 @@
     restaurant: '#d97706',
     bar: '#c026d3',
     pool: '#0284c7',
+    station: '#b45309',
     amenity: '#0b8a6d'
   };
   var LABEL_MIN_SCALE = 0.42; // hide dot labels when zoomed out beyond this
@@ -657,7 +659,7 @@
     var dots = gDots.querySelectorAll('.dot');
     for (var i = 0; i < dots.length; i++) {
       var g = dots[i];
-      var show = typeVisible[g.dataset.nodeType];
+      var show = isTypeVisible(g.dataset.nodeType);
       // keep the current From/To visible even if its category is off
       var id = g.dataset.nodeId;
       if (id === els.from.value || id === els.to.value) show = true;
@@ -968,6 +970,22 @@
     gRoutes.appendChild(MapView.el('polyline', {
       points: polylinePoints(sel), 'class': 'route-primary'
     }));
+    appendTransitOverlays(sel);
+  }
+
+  /* Dashed overlay on the legs you RIDE (gondola/shuttle), drawn over the line. */
+  function appendTransitOverlays(r) {
+    if (!r.steps) return;
+    for (var i = 0; i < r.steps.length; i++) {
+      var s = r.steps[i];
+      if (!s.transit) continue;
+      var end = i + 1 < r.steps.length ? r.steps[i + 1].coordIndex : r.coords.length - 1;
+      var pts = r.coords.slice(s.coordIndex, end + 1)
+        .map(function (c) { return c.x + ',' + c.y; }).join(' ');
+      gRoutes.appendChild(MapView.el('polyline', {
+        points: pts, 'class': 'route-transit route-transit-' + s.transit
+      }));
+    }
   }
 
   function makePin(color) {
@@ -1076,6 +1094,8 @@
 
   function stepGlyph(text) {
     var t = text.toLowerCase();
+    if (t.indexOf('ride the gondola') === 0) return '🚠';
+    if (t.indexOf('ride the shuttle') === 0) return '🚌';
     if (t.indexOf('arrive') === 0) return '⚑';
     if (t.indexOf('turn left') === 0) return '↰';
     if (t.indexOf('turn right') === 0) return '↱';
@@ -1176,6 +1196,7 @@
     var ahead = [head].concat(r.coords.slice(proj.seg + 1).map(ptStr)).join(' ');
     gRoutes.appendChild(MapView.el('polyline', { points: traveled, 'class': 'route-traveled' }));
     gRoutes.appendChild(MapView.el('polyline', { points: ahead, 'class': 'route-primary' }));
+    appendTransitOverlays(r);
   }
 
   function startNavigation() {
@@ -1211,7 +1232,8 @@
   }
 
   var GLYPH = { arrive: '⚑', 'turn left': '↰', 'turn right': '↱',
-                'bear left': '↖', 'bear right': '↗' };
+                'bear left': '↖', 'bear right': '↗',
+                'ride the gondola': '🚠', 'ride the shuttle': '🚌' };
   function glyphFor(text) {
     var t = text.toLowerCase();
     for (var k in GLYPH) if (t.indexOf(k) === 0) return GLYPH[k];

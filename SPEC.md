@@ -134,6 +134,19 @@ path jitter doesn't produce a flood of micro-turns. Each step carries
 `coordIndex` — the vertex in `coords` where its maneuver occurs — used by live
 navigation to know the current step and distance to the next turn.
 
+## Transit (gondola & shuttle)
+
+Nodes of type `station` (destination: true) are boarding points. Edges of
+pathType `gondola`/`shuttle` are ridden, not walked: only the **fastest**
+weighting may use them (shortest stays a pure walking route), speeds come from
+`config.walkSpeeds` (both 5 m/s ≈ average incl. stops), steps render as
+"Ride the shuttle/gondola to <stop>" (consecutive transit hops merge into one
+ride step, flagged `transit` in the API), and the guest UI draws ridden legs
+as a dashed overlay (amber = shuttle, pink = gondola). The gondola is one
+straight edge between its two stations (a cable car flies straight); shuttle
+legs are chains of via-nodes traced along the road network, connected to the
+walking graph only at stations so you can only board at a stop.
+
 ## Live navigation (guest UI)
 
 Pressing **Start** on a fetched route enters turn-by-turn mode (requires GPS

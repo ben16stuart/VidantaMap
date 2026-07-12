@@ -146,13 +146,18 @@ test('every destination can reach every other destination (connectivity)', () =>
   assert.deepEqual(unreachable, [], `unreachable destinations: ${unreachable.join(', ')}`);
 });
 
-test('turn steps use Turn/Bear left/right vocabulary only', () => {
+test('middle steps are turns, rides, or post-ride headings', () => {
   for (const [from, to] of pairs) {
     const resp = buildRouteResponse(graph, from, to);
     for (const route of [resp.routes.shortest, resp.routes.fastest]) {
       for (let i = 1; i < route.steps.length - 1; i++) {
-        assert.match(route.steps[i].text, /^(Turn|Bear) (left|right)$/,
+        assert.match(route.steps[i].text,
+          /^((Turn|Bear) (left|right)|Ride the (shuttle|gondola) to |Head (north|northeast|east|southeast|south|southwest|west|northwest) on )/,
           `middle step "${route.steps[i].text}" (${from}->${to})`);
+      }
+      // shortest must be a pure walking route (no transit steps)
+      for (const s of resp.routes.shortest.steps) {
+        assert.ok(!s.transit, `shortest rides transit (${from}->${to}): ${s.text}`);
       }
     }
   }
