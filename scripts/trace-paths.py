@@ -30,7 +30,12 @@ walk = closing(board | road, disk(4))
 walk = remove_small_objects(walk, min_size=300)
 
 skel, dist = medial_axis(walk, return_distance=True)
-skel = skel & (dist <= 16)          # drop centerlines of fat blobs (decks/plazas)
+skel_full = skel.copy()             # kept for healing width-filter cuts
+# Thin centerlines of wide blobs (big pool decks) to avoid plaza tangles, but
+# see scripts/heal-cuts.mjs which restores connections this severs at wide
+# intersections (roundabouts) using skel_full.
+BLOB_DIST = float(os.environ.get('BLOB_DIST', '16'))
+skel = skel & (dist <= BLOB_DIST)
 
 # ---- skeleton -> pixel graph ----
 ys, xs = np.nonzero(skel)
