@@ -78,6 +78,16 @@
 
 <div id="toast" role="status" aria-live="polite" hidden></div>
 
+<!-- Live navigation maneuver banner (Google-Maps style), shown while navigating -->
+<div id="nav-banner" hidden>
+  <span id="nav-glyph" class="nav-glyph" aria-hidden="true">↑</span>
+  <div class="nav-text">
+    <div id="nav-dist" class="nav-dist"></div>
+    <div id="nav-instr" class="nav-instr"></div>
+  </div>
+  <button id="nav-exit" type="button" title="Exit navigation" aria-label="Exit navigation">✕</button>
+</div>
+
 <!-- floating follow-me button, reachable while the search card is minimized -->
 <button id="follow-fab" type="button" title="Follow my location" aria-label="Follow my location">⌖</button>
 
@@ -89,6 +99,7 @@
   </button>
   <div class="sheet-head">
     <div id="chips" class="chips" role="tablist" aria-label="Route options"></div>
+    <button id="start-btn" type="button">▶ Start</button>
     <button id="reverse-btn" type="button" title="Reverse route" aria-label="Reverse route">⇅</button>
     <button id="sheet-close" type="button" title="Clear route" aria-label="Clear route">✕</button>
   </div>

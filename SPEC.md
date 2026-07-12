@@ -128,7 +128,23 @@ translucent GPS-accuracy circle sized in real map meters.
 Steps are generated from geometry: compass bearing of the first segment
 ("Head <direction>…"), then a step at each significant bearing change
 (> 35° → "Turn left/right", 20–35° → "Bear left/right"), merging straight
-segments and summing their distance, ending with "Arrive at <name>".
+segments and summing their distance, ending with "Arrive at <name>". Maneuvers
+whose leg is shorter than 12 m are folded into the previous step so traced
+path jitter doesn't produce a flood of micro-turns. Each step carries
+`coordIndex` — the vertex in `coords` where its maneuver occurs — used by live
+navigation to know the current step and distance to the next turn.
+
+## Live navigation (guest UI)
+
+Pressing **Start** on a fetched route enters turn-by-turn mode (requires GPS
+follow-me). On each GPS fix the app projects the live position onto the route
+polyline and: splits the line into a dimmed walked portion and a bright
+remaining portion; advances the step list (completed steps greyed, current
+step highlighted with live distance-to-next-turn); shows a maneuver banner
+(next turn glyph + "In N m" + instruction); and updates remaining time/distance
+in the sheet. Straying >25 m off the path shows an off-route banner and
+auto-reroutes from the current location (throttled). Reaching the end shows an
+"Arrived" banner. **Exit** returns to the static route overview.
 Errors: unknown node id → 400; no path exists → 404 `{ error: "no-route" }`.
 
 - `GET /api/health` → `{ ok: true }`.

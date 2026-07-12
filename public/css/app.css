@@ -364,6 +364,55 @@ html, body {
 }
 #reverse-btn:active { background: #dfe9e6; }
 
+/* live navigation maneuver banner */
+#nav-banner {
+  position: fixed;
+  top: calc(10px + env(safe-area-inset-top, 0px));
+  left: 12px;
+  right: 12px;
+  max-width: 400px;
+  margin: 0 auto;
+  z-index: 22;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: var(--radius);
+  background: linear-gradient(135deg, var(--brand), #0d8a76);
+  color: #fff;
+  box-shadow: var(--shadow);
+}
+#nav-banner[hidden] { display: none; }
+.nav-glyph { font-size: 30px; line-height: 1; flex: 0 0 auto; width: 34px; text-align: center; }
+.nav-text { flex: 1; min-width: 0; }
+.nav-dist { font-size: 22px; font-weight: 800; letter-spacing: -0.3px; }
+.nav-instr { font-size: 14px; opacity: 0.95; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#nav-banner.off-route { background: linear-gradient(135deg, #b45309, #d97706); }
+#nav-banner.arrived { background: linear-gradient(135deg, #15803d, #16a34a); }
+#nav-exit {
+  flex: 0 0 30px; width: 30px; height: 30px; border-radius: 50%;
+  border: none; background: rgba(255,255,255,0.22); color: #fff;
+  font-size: 14px; cursor: pointer;
+}
+#nav-exit:active { background: rgba(255,255,255,0.35); }
+
+/* Start navigation button */
+#start-btn {
+  flex: 0 0 auto;
+  border: none;
+  border-radius: 999px;
+  background: var(--brand);
+  color: #fff;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 800;
+  padding: 8px 15px;
+  cursor: pointer;
+  box-shadow: 0 3px 10px rgba(11, 107, 93, 0.35);
+}
+#start-btn:active { transform: translateY(1px); }
+#start-btn.hidden { display: none; }
+
 /* floating follow-me button */
 #follow-fab {
   position: fixed;
@@ -528,6 +577,21 @@ html, body {
 .step-text { flex: 1; min-width: 0; }
 .step-dist { flex: 0 0 auto; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 
+/* live-navigation step states */
+.steps li.done { opacity: 0.4; }
+.steps li.done .step-icon { background: #eef1f0; color: var(--muted); }
+.steps li.current {
+  background: #eef4ff;
+  border-radius: 12px;
+  border-bottom-color: transparent;
+  padding-left: 8px;
+  padding-right: 8px;
+  margin: 2px 0;
+}
+.steps li.current .step-icon { background: var(--route); color: #fff; }
+.steps li.current .step-text { font-weight: 700; }
+.steps li.current .step-dist { color: var(--route); font-weight: 800; font-size: 14px; }
+
 /* collapsed: keep grabber + chips visible, hide details */
 #sheet.collapsed .route-summary,
 #sheet.collapsed .steps { display: none; }
@@ -560,6 +624,16 @@ html, body {
   stroke-dasharray: 2 10;
   vector-effect: non-scaling-stroke;
   opacity: 0.95;
+}
+/* portion already walked, dimmed like Google Maps */
+.route-traveled {
+  fill: none;
+  stroke: #9aa7c2;
+  stroke-width: 5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+  opacity: 0.75;
 }
 
 .dot circle.dot-core { stroke: #ffffff; stroke-width: 2; }

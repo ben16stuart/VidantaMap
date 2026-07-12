@@ -46,7 +46,13 @@
     sheetClose: $('sheet-close'),
     chips: $('chips'),
     summary: $('route-summary'),
-    steps: $('steps')
+    steps: $('steps'),
+    start: $('start-btn'),
+    navBanner: $('nav-banner'),
+    navGlyph: $('nav-glyph'),
+    navDist: $('nav-dist'),
+    navInstr: $('nav-instr'),
+    navExit: $('nav-exit')
   };
 
   var mv = null;
@@ -56,6 +62,14 @@
   var route = null;            // last /api/route response
   var selectedOpt = 'fastest';
   var toastTimer = null;
+
+  // live navigation state
+  var navMode = false;         // actively navigating a route (Start pressed)
+  var navGeom = null;          // { coords, cumPx[], totalPx, steps, stepStartPx[] }
+  var stepEls = [];            // <li> per step, for progress highlighting
+  var navArrived = false;
+  var offRouteCount = 0;
+  var lastReroute = 0;
 
   var PIN_VALUE = '__pin';     // select value representing a dropped pin
   var pins = { from: null, to: null };  // dropped-pin map coords per side
@@ -425,6 +439,9 @@
     hadFix = true;
     ensureLiveDot(x, y, pos.coords.accuracy);
 
+    // live navigation drives its own line/steps/banner from each fix
+    if (navMode) updateNavigation(x, y);
+
     if (first) {
       // brief window to correct a wrong-but-in-bounds dot with a tap
       pendingCal = { lat: lat, lng: lng, soft: true, expires: Date.now() + 15000 };
@@ -791,6 +808,12 @@
     els.swap.addEventListener('click', swapEndpoints);
     els.reverse.addEventListener('click', swapEndpoints);
 
+    els.start.addEventListener('click', startNavigation);
+    els.navExit.addEventListener('click', function () {
+      if (navArrived) { clearRoute(); updatePins(); }
+      else exitNavigation();
+    });
+
     [els.from, els.to].forEach(function (sel) {
       sel.addEventListener('change', function () {
         if (sel.value !== PIN_VALUE) {
@@ -819,7 +842,8 @@
 
   /* ---------------- routing ---------------- */
 
-  function getDirections() {
+  function getDirections(opts) {
+    var keepNav = opts && opts.keepNav;
     var from = endpointParam(els.from), to = endpointParam(els.to);
     if (!from || !to) {
       showToast('Choose both a starting point and a destination.');
@@ -853,10 +877,18 @@
         renderChips();
         renderDetails();
         updatePins();
+        buildNavGeom();
         els.sheet.hidden = false;
-        els.sheet.classList.remove('collapsed');
-        setTopCollapsed(true);  // get the pickers out of the way of the route
-        fitToRoute();
+        els.start.classList.toggle('hidden', navMode && keepNav);
+        if (keepNav && navMode) {
+          // reroute mid-navigation: resume progress on the new line
+          offRouteCount = 0;
+          if (liveDot) updateNavigation(+liveDot.dataset.mx, +liveDot.dataset.my);
+        } else {
+          els.sheet.classList.remove('collapsed');
+          setTopCollapsed(true);  // get the pickers out of the way of the route
+          fitToRoute();
+        }
       })
       .catch(function () {
         showToast('Something went wrong getting directions. Please try again.', true);
@@ -875,6 +907,10 @@
 
   function clearRoute() {
     route = null;
+    navGeom = null;
+    stepEls = [];
+    if (navMode || navArrived) exitNavigation();
+    els.start.classList.remove('hidden');
     while (gRoutes && gRoutes.firstChild) gRoutes.removeChild(gRoutes.firstChild);
     els.sheet.hidden = true;
   }
@@ -999,6 +1035,8 @@
         renderRoutes();
         renderChips();
         renderDetails();
+        buildNavGeom();
+        if (navMode && liveDot) updateNavigation(+liveDot.dataset.mx, +liveDot.dataset.my);
       });
       els.chips.appendChild(b);
     });
@@ -1029,6 +1067,7 @@
     els.summary.appendChild(small);
 
     els.steps.innerHTML = '';
+    stepEls = [];
     (r.steps || []).forEach(function (s) {
       var li = document.createElement('li');
       var isArrive = s.text.toLowerCase().indexOf('arrive') === 0;
@@ -1045,14 +1084,221 @@
       li.appendChild(icon);
       li.appendChild(txt);
 
-      if (s.distanceMeters > 0) {
-        var dist = document.createElement('span');
-        dist.className = 'step-dist';
-        dist.textContent = fmtDist(s.distanceMeters);
-        li.appendChild(dist);
-      }
+      // always create the distance slot (live nav updates it in place)
+      var dist = document.createElement('span');
+      dist.className = 'step-dist';
+      dist.textContent = s.distanceMeters > 0 ? fmtDist(s.distanceMeters) : '';
+      li.appendChild(dist);
+
       els.steps.appendChild(li);
+      stepEls.push(li);
     });
+  }
+
+  /* ---------------- live navigation ---------------- */
+
+  function mpp() { return graph.config.metersPerPixel || 1; }
+
+  /* Precompute cumulative geometry + per-step start distances for the
+   * currently selected route. Rebuilt whenever the route/option changes. */
+  function buildNavGeom() {
+    if (!route) { navGeom = null; return; }
+    var r = route.routes[selectedOpt];
+    var c = r.coords, cum = [0];
+    for (var i = 1; i < c.length; i++) {
+      cum[i] = cum[i - 1] + Math.hypot(c[i].x - c[i - 1].x, c[i].y - c[i - 1].y);
+    }
+    var stepStartPx = r.steps.map(function (s) {
+      return cum[Math.min(s.coordIndex || 0, cum.length - 1)];
+    });
+    navGeom = { coords: c, cumPx: cum, totalPx: cum[cum.length - 1],
+                steps: r.steps, stepStartPx: stepStartPx };
+  }
+
+  /* Nearest point on the route polyline to (px,py). */
+  function projectOnRoute(px, py) {
+    if (!navGeom) return null;
+    var c = navGeom.coords, best = null;
+    for (var i = 0; i < c.length - 1; i++) {
+      var ax = c[i].x, ay = c[i].y, dx = c[i + 1].x - ax, dy = c[i + 1].y - ay;
+      var L2 = dx * dx + dy * dy;
+      var t = L2 ? Math.max(0, Math.min(1, ((px - ax) * dx + (py - ay) * dy) / L2)) : 0;
+      var qx = ax + t * dx, qy = ay + t * dy, d = Math.hypot(px - qx, py - qy);
+      if (!best || d < best.d) {
+        best = { d: d, seg: i, x: qx, y: qy, alongPx: navGeom.cumPx[i] + t * Math.sqrt(L2) };
+      }
+    }
+    return best;
+  }
+
+  function ptStr(c) { return c.x + ',' + c.y; }
+
+  /* Redraw the selected route split into walked (dim) + ahead (bright). */
+  function renderRouteSplit(proj) {
+    while (gRoutes.firstChild) gRoutes.removeChild(gRoutes.firstChild);
+    if (!route) return;
+    var r = route.routes[selectedOpt];
+    gRoutes.appendChild(MapView.el('polyline', { points: polylinePoints(r), 'class': 'route-casing' }));
+    var head = proj.x + ',' + proj.y;
+    var traveled = r.coords.slice(0, proj.seg + 1).map(ptStr).concat([head]).join(' ');
+    var ahead = [head].concat(r.coords.slice(proj.seg + 1).map(ptStr)).join(' ');
+    gRoutes.appendChild(MapView.el('polyline', { points: traveled, 'class': 'route-traveled' }));
+    gRoutes.appendChild(MapView.el('polyline', { points: ahead, 'class': 'route-primary' }));
+  }
+
+  function startNavigation() {
+    if (!route) return;
+    navMode = true;
+    navArrived = false;
+    offRouteCount = 0;
+    buildNavGeom();
+    if (!following()) useMyLocation();        // begin GPS tracking
+    if (!following()) {                        // GPS blocked/denied — abort nav
+      navMode = false;
+      return;                                  // useMyLocation already explained why
+    }
+    els.start.classList.add('hidden');
+    els.sheet.classList.add('collapsed');      // give the map room; banner leads
+    setTopCollapsed(true);
+    // if we already have a fix, paint progress immediately
+    if (liveDot) updateNavigation(+liveDot.dataset.mx, +liveDot.dataset.my);
+    updateNavUi();
+  }
+
+  function exitNavigation() {
+    navMode = false;
+    navArrived = false;
+    els.navBanner.hidden = true;
+    els.navBanner.classList.remove('off-route', 'arrived');
+    els.start.classList.remove('hidden');
+    if (route) { renderRoutes(); renderDetails(); }  // back to static overview
+  }
+
+  function updateNavUi() {
+    els.start.classList.toggle('hidden', navMode);
+  }
+
+  var GLYPH = { arrive: '⚑', 'turn left': '↰', 'turn right': '↱',
+                'bear left': '↖', 'bear right': '↗' };
+  function glyphFor(text) {
+    var t = text.toLowerCase();
+    for (var k in GLYPH) if (t.indexOf(k) === 0) return GLYPH[k];
+    return '↑';
+  }
+
+  /* Called on each GPS fix while navigating: projects the dot, splits the
+   * line, advances the step list, updates the maneuver banner, handles
+   * arrival, and reroutes if the walker strays off the path. */
+  function updateNavigation(px, py) {
+    if (!navMode || !route) return;
+    if (!navGeom) buildNavGeom();
+    var proj = projectOnRoute(px, py);
+    if (!proj) return;
+    renderRouteSplit(proj);
+
+    var M = mpp();
+    var alongM = proj.alongPx * M;
+    var totalM = navGeom.totalPx * M;
+    var perpM = proj.d * M;
+    var remainingM = Math.max(0, totalM - alongM);
+
+    if (remainingM <= 8 || (proj.seg >= navGeom.coords.length - 2 && remainingM <= 15)) {
+      showArrived();
+      return;
+    }
+
+    // current step = last step whose maneuver point we've passed
+    var cur = 0;
+    for (var i = 0; i < navGeom.steps.length; i++) {
+      if (navGeom.stepStartPx[i] * M <= alongM + 0.5) cur = i;
+    }
+    var nextIdx = Math.min(cur + 1, navGeom.steps.length - 1);
+    var distNext = Math.max(0, navGeom.stepStartPx[nextIdx] * M - alongM);
+
+    // maneuver banner shows the NEXT maneuver and the distance to it
+    var nextStep = navGeom.steps[nextIdx];
+    var offRoute = perpM > 25;
+    els.navBanner.hidden = false;
+    els.navBanner.classList.toggle('off-route', offRoute);
+    els.navBanner.classList.remove('arrived');
+    if (offRoute) {
+      els.navGlyph.textContent = '⚠';
+      els.navDist.textContent = Math.round(perpM) + ' m off route';
+      els.navInstr.textContent = 'Head back to the path';
+    } else {
+      els.navGlyph.textContent = glyphFor(nextStep.text);
+      els.navDist.textContent = 'In ' + fmtDist(distNext);
+      els.navInstr.textContent = nextStep.text;
+    }
+
+    // ETA + remaining in the sheet summary
+    var speed = totalM / Math.max(1, route.routes[selectedOpt].timeSeconds); // m/s
+    var remainingSec = remainingM / (speed || 1.3);
+    els.summary.innerHTML = '';
+    els.summary.appendChild(document.createTextNode(fmtTime(remainingSec) + ' · ' + fmtDist(remainingM) + ' left'));
+    var small = document.createElement('small');
+    small.textContent = 'to ' + endpointName(route.to);
+    els.summary.appendChild(small);
+
+    highlightSteps(cur, distNext);
+
+    if (offRoute) {
+      offRouteCount++;
+      if (offRouteCount >= 3 && Date.now() - lastReroute > 8000) reroute(px, py);
+    } else {
+      offRouteCount = 0;
+    }
+  }
+
+  function highlightSteps(cur, distNext) {
+    for (var i = 0; i < stepEls.length; i++) {
+      var li = stepEls[i];
+      if (!li) continue;
+      li.classList.toggle('done', i < cur);
+      li.classList.toggle('current', i === cur);
+      var distEl = li.querySelector('.step-dist');
+      if (i === cur && distEl && !li.classList.contains('arrive')) {
+        distEl.textContent = fmtDist(distNext);
+      } else if (distEl && navGeom.steps[i]) {
+        distEl.textContent = navGeom.steps[i].distanceMeters > 0
+          ? fmtDist(navGeom.steps[i].distanceMeters) : '';
+      }
+    }
+    if (stepEls[cur] && !els.sheet.classList.contains('collapsed')) {
+      stepEls[cur].scrollIntoView({ block: 'nearest' });
+    }
+  }
+
+  function showArrived() {
+    navArrived = true;
+    els.navBanner.hidden = false;
+    els.navBanner.classList.remove('off-route');
+    els.navBanner.classList.add('arrived');
+    els.navGlyph.textContent = '⚑';
+    els.navDist.textContent = 'Arrived';
+    els.navInstr.textContent = endpointName(route.to);
+    // full route dim to show it's complete
+    while (gRoutes.firstChild) gRoutes.removeChild(gRoutes.firstChild);
+    gRoutes.appendChild(MapView.el('polyline', {
+      points: polylinePoints(route.routes[selectedOpt]), 'class': 'route-traveled'
+    }));
+    for (var i = 0; i < stepEls.length; i++) if (stepEls[i]) {
+      stepEls[i].classList.add('done');
+      stepEls[i].classList.remove('current');
+    }
+    if (navigator.vibrate) { try { navigator.vibrate(200); } catch (e) {} }
+    navMode = false; // stop advancing; banner stays until dismissed
+  }
+
+  function reroute(px, py) {
+    lastReroute = Date.now();
+    offRouteCount = 0;
+    showToast('Off route — recalculating from your location…', false, 3000);
+    pins.from = { x: Math.round(px), y: Math.round(py) };
+    fromIsLocation = true;
+    setPinOption(els.from, '⌖ My location');
+    updatePins();
+    getDirections({ keepNav: true });
   }
 
   init();

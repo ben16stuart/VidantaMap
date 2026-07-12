@@ -188,6 +188,25 @@ test('pin routing leaves the stored graph unmodified', () => {
   assert.ok(!graph.nodes.some((n) => String(n.id).startsWith('__pin')));
 });
 
+test('steps carry a valid coordIndex for live navigation', () => {
+  for (const [from, to] of pairs) {
+    const resp = buildRouteResponse(graph, from, to);
+    for (const route of [resp.routes.shortest, resp.routes.fastest]) {
+      let prev = -1;
+      for (const s of route.steps) {
+        assert.equal(typeof s.coordIndex, 'number', `${from}->${to}: step has coordIndex`);
+        assert.ok(s.coordIndex >= 0 && s.coordIndex < route.coords.length,
+          `${from}->${to}: coordIndex ${s.coordIndex} in range 0..${route.coords.length - 1}`);
+        assert.ok(s.coordIndex >= prev, `${from}->${to}: coordIndex is non-decreasing`);
+        prev = s.coordIndex;
+      }
+      assert.equal(route.steps[0].coordIndex, 0, `${from}->${to}: first step at index 0`);
+      assert.equal(route.steps[route.steps.length - 1].coordIndex, route.coords.length - 1,
+        `${from}->${to}: arrive step at final vertex`);
+    }
+  }
+});
+
 test('paved cart roads are avoided when a boardwalk detour exists', () => {
   // A--B direct on a road (100px) vs A--C--B boardwalk detour (~283px).
   // With the ×4 paved penalty the boardwalk detour must win in both modes,
