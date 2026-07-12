@@ -437,6 +437,30 @@ html, body {
 #follow-fab.paused { color: #2563eb; }
 #follow-fab:active { transform: scale(0.94); }
 
+/* visible Calibrate button, sits just left of the follow button */
+#calibrate-btn {
+  position: fixed;
+  right: 70px;
+  bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  z-index: 25;
+  height: 48px;
+  padding: 0 15px;
+  border-radius: 999px;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  background: var(--card);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  box-shadow: var(--shadow);
+  color: var(--brand);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s, bottom 0.2s;
+}
+#calibrate-btn:active { transform: scale(0.96); }
+#calibrate-btn.armed { background: #b45309; border-color: #b45309; color: #fff; }
+
 /* POI category filter chips */
 #filters {
   position: fixed;

@@ -32,6 +32,7 @@
     swap: $('swap-btn'),
     go: $('go-btn'),
     loc: $('loc-btn'),
+    calibrate: $('calibrate-btn'),
     topcard: $('topcard'),
     topFull: $('topcard-full'),
     topMini: $('topcard-mini'),
@@ -287,6 +288,7 @@
   function calibrateAt(p) {
     var cal = pendingCal;
     pendingCal = null;
+    armCalibrateBtn(false);
     hideToast();
     var x = Math.round(Math.min(Math.max(p.x, 0), graph.config.width));
     var y = Math.round(Math.min(Math.max(p.y, 0), graph.config.height));
@@ -519,16 +521,26 @@
   /* Hold-⌖ entry point: recalibrate from the freshest GPS fix. */
   function startRecalibration() {
     if (!graph || !graph.config.geo) return;
+    if (!window.isSecureContext) {
+      showToast('Calibration needs GPS, which the browser only allows over HTTPS. Open the site’s https:// link and try again.', true, 8000);
+      return;
+    }
     if (lastFix) {
       pendingCal = { lat: lastFix.lat, lng: lastFix.lng, soft: false };
-      showToast('Recalibrating: tap the map exactly where you are standing.', false, 0);
+      armCalibrateBtn(true);
+      showToast('Calibrate: now tap the map exactly where you are standing (pinch to zoom in first for accuracy).', false, 0);
       return;
     }
     // no fix yet — start tracking and calibrate on the first fix
     calibrateOnFix = true;
     if (!following()) useMyLocation();
-    if (following()) showToast('Getting a GPS fix… then tap the map exactly where you are standing.', false, 0);
+    if (following()) { armCalibrateBtn(true); showToast('Getting a GPS fix… then tap the map exactly where you are standing.', false, 0); }
     else calibrateOnFix = false; // useMyLocation refused (insecure context etc.)
+  }
+
+  function armCalibrateBtn(on) {
+    els.calibrate.classList.toggle('armed', !!on);
+    els.calibrate.textContent = on ? '⌖ Tap the map' : '⌖ Calibrate';
   }
 
   /* Panning by hand pauses auto-centering (tracking continues). */
@@ -777,12 +789,18 @@
       if (fabHeld) { fabHeld = false; return; }  // the hold consumed this press
       useMyLocation();
     });
+    // explicit, discoverable calibrate button
+    els.calibrate.addEventListener('click', function () {
+      if (pendingCal) { pendingCal = null; armCalibrateBtn(false); hideToast(); return; } // toggle off
+      startRecalibration();
+    });
     updateFollowUi();
 
-    // keep the follow button floating just above the directions sheet
+    // keep the follow + calibrate buttons floating just above the directions sheet
     function placeFab() {
       var h = els.sheet.hidden ? 0 : els.sheet.getBoundingClientRect().height;
       els.fab.style.bottom = (h + 16) + 'px';
+      els.calibrate.style.bottom = (h + 16) + 'px';
     }
     if (window.ResizeObserver) new ResizeObserver(placeFab).observe(els.sheet);
     window.addEventListener('resize', placeFab);
