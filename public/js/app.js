@@ -311,6 +311,7 @@
     try {
       localStorage.setItem(GEO_STORE_KEY, JSON.stringify({ geo: graph.config.geo, anchors: calAnchors }));
     } catch (e) { /* ignore */ }
+    armCalibrateBtn(false);   // refresh the 1-of-2 / ✓ progress label
     // best effort: persist for everyone when the real server is behind us
     try {
       fetch('/api/graph', {
@@ -411,6 +412,7 @@
     hadFix = false;
     removeLiveDot();
     updateFollowUi();
+    updatePins();   // the "My location" From marker returns once the live dot is gone
   }
 
   function onFix(pos) {
@@ -540,7 +542,12 @@
 
   function armCalibrateBtn(on) {
     els.calibrate.classList.toggle('armed', !!on);
-    els.calibrate.textContent = on ? '⌖ Tap the map' : '⌖ Calibrate';
+    // show two-point progress: the map is drawn at an angle, so N/S/E/W only
+    // lock in after the SECOND reference point far from the first
+    var idle = calAnchors.length >= 2 ? '⌖ Calibrated ✓'
+      : calAnchors.length === 1 ? '⌖ Calibrate (1 of 2)'
+      : '⌖ Calibrate';
+    els.calibrate.textContent = on ? '⌖ Tap the map' : idle;
   }
 
   /* Panning by hand pauses auto-centering (tracking continues). */
@@ -791,9 +798,13 @@
     });
     // explicit, discoverable calibrate button
     els.calibrate.addEventListener('click', function () {
-      if (pendingCal) { pendingCal = null; armCalibrateBtn(false); hideToast(); return; } // toggle off
+      if (pendingCal && !pendingCal.soft) {   // armed by this button → toggle off
+        pendingCal = null; armCalibrateBtn(false); hideToast(); return;
+      }
+      pendingCal = null;                       // discard any soft tap-to-correct window
       startRecalibration();
     });
+    armCalibrateBtn(false);   // reflect saved anchors (e.g. "1 of 2") on load
     updateFollowUi();
 
     // keep the follow + calibrate buttons floating just above the directions sheet
@@ -989,7 +1000,10 @@
     while (gPins.firstChild) gPins.removeChild(gPins.firstChild);
     var from = endpointCoords(els.from);
     var to = endpointCoords(els.to);
-    if (from) {
+    // While live-tracking, the moving live dot IS "you" — drawing the frozen
+    // "My location" From marker too would show two blue dots.
+    var fromIsLiveDuplicate = fromIsLocation && els.from.value === PIN_VALUE && following();
+    if (from && !fromIsLiveDuplicate) {
       var p1 = fromIsLocation && els.from.value === PIN_VALUE
         ? makeLocationDot()
         : makePin('#16a34a');
