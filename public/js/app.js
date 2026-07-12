@@ -135,9 +135,18 @@
           var savedGeo = localStorage.getItem(GEO_STORE_KEY);
           if (savedGeo) {
             var parsed = JSON.parse(savedGeo);
-            if (parsed.topLeft) {            // legacy format: geo only
-              graph.config.geo = parsed;
-            } else if (parsed.geo) {
+            // map v2 = stitched full map: old coords shifted by (+349, +1931)
+            var savedVer = parsed.mapVersion || 1;
+            var curVer = graph.config.mapVersion || 1;
+            if (savedVer === 1 && curVer >= 2 && parsed.geo && typeof parsed.geo.tx === 'number') {
+              parsed.geo.tx += 349; parsed.geo.ty += 1931;
+              (parsed.anchors || []).forEach(function (a) { a.x += 349; a.y += 1931; });
+              parsed.mapVersion = curVer;
+              localStorage.setItem(GEO_STORE_KEY, JSON.stringify(parsed));
+            }
+            if (parsed.topLeft && savedVer === (graph.config.mapVersion || 1)) {
+              graph.config.geo = parsed;       // legacy corner format, same map
+            } else if (parsed.geo && (parsed.mapVersion || 1) === curVer) {
               graph.config.geo = parsed.geo;
               calAnchors = parsed.anchors || [];
             }
@@ -167,6 +176,9 @@
     mv.onClick(handleMapTap);
     bindLongPress();
     bindPanPausesFollow();
+    // open on the resort core, not the full stitched canvas
+    var hv = graph.config.homeView;
+    if (hv) mv.fitBounds(hv.x, hv.y, hv.x + hv.w, hv.y + hv.h, 0);
     updateScaledMarkers();
   }
 
@@ -311,7 +323,10 @@
     var twoPoint = calAnchors.length >= 2 && typeof graph.config.geo.d === 'number' &&
       (graph.config.geo.d !== 0 || graph.config.geo.c !== 1 / (graph.config.metersPerPixel || 1));
     try {
-      localStorage.setItem(GEO_STORE_KEY, JSON.stringify({ geo: graph.config.geo, anchors: calAnchors }));
+      localStorage.setItem(GEO_STORE_KEY, JSON.stringify({
+        geo: graph.config.geo, anchors: calAnchors,
+        mapVersion: graph.config.mapVersion || 1
+      }));
     } catch (e) { /* ignore */ }
     armCalibrateBtn(false);   // refresh the 1-of-2 / ✓ progress label
     // best effort: persist for everyone when the real server is behind us
