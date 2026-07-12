@@ -43,6 +43,10 @@ to press-and-hold pin placement.
   minimizes time using per-path-type walking speeds (paved > boardwalk > trail >
   stairs), so a slightly longer paved route can beat a slow garden trail.
 - Distances use a `metersPerPixel` calibration in `data/graph.json` → `config`.
+- The path network is traced from the map artwork (`scripts/trace-paths.py`),
+  then `scripts/refine-paths.mjs` bends the edges onto the boardwalk so drawn
+  routes hug curves instead of cutting corners (geometry only — it never
+  changes which places connect).
 
 ## Admin data notes
 

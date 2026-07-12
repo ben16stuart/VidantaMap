@@ -6,9 +6,16 @@ chain extraction -> RDP simplify -> prune spurs -> merge close nodes ->
 bridge gaps (baked-in map pins cut the artwork) -> emit traced.json.
 """
 import json
+import os
+import sys
 import numpy as np
 from PIL import Image
 from skimage.morphology import closing, disk, remove_small_objects, medial_axis
+
+# RDP simplification tolerance (px). Lower = more vertices = route lines hug
+# curves more tightly. 2.5 produced the live graph; see scripts/refine-paths.mjs
+# for a safer geometry-only curve-hugging pass applied on top.
+RDP_EPS = float(os.environ.get('RDP_EPS', sys.argv[1] if len(sys.argv) > 1 else 2.5))
 
 SCRATCH = '/tmp/claude-0/-home-user-VidantaMap/a5aff856-b1bf-552e-9acc-f4882bad4252/scratchpad'
 img = np.array(Image.open('/home/user/VidantaMap/public/img/resort-map.png').convert('RGB')).astype(int)
@@ -99,7 +106,7 @@ edges = []   # (fromId, toId, pathType)
 for ch in chains:
     if chain_len(ch) < 6 and deg.get(ch[0], 0) >= 2 and deg.get(ch[-1], 0) >= 2:
         pass  # keep tiny connectors between junctions
-    simp = rdp(ch, 2.5)
+    simp = rdp(ch, RDP_EPS)
     t = chain_type(ch)
     for a, b in zip(simp, simp[1:]):
         if a == b:
@@ -265,6 +272,15 @@ out = {
 }
 with open(f'{SCRATCH}/traced.json', 'w') as f:
     json.dump(out, f)
+
+# Sidecar mask of areas a POI access stub must not cut across (buildings,
+# jungle/grass, water). Used by the regeneration step to snap pools/venues to
+# the nearest path via decks rather than straight across grass.
+veg = ((G - R) >= 16) & ((G - B) >= 25)
+blocked = (bld | veg | water).astype(np.uint8).reshape(-1)
+with open(f'{SCRATCH}/bldmask.json', 'w') as f:
+    json.dump(blocked.tolist(), f)
+
 comps = components(edges)
 print('nodes:', len(used), 'edges:', len(edges), 'components:', len(comps),
       'largest:', max(len(c) for c in comps))
