@@ -208,55 +208,66 @@
 
   /* ---------------- current location (GPS) ---------------- */
 
-  /* Linear lat/lng → map px using the config.geo corner calibration. */
+  /* GPS (lat,lng) → local planar meters around a reference point.
+   * sx = east (map x grows east), sy = -north (screen y grows south). */
+  function toMeters(lat, lng, ref) {
+    return {
+      sx: (lng - ref.lng) * 111320 * Math.cos(ref.lat * Math.PI / 180),
+      sy: -(lat - ref.lat) * 110540
+    };
+  }
+
+  /* lat/lng → map pixels. Supports a similarity transform (position +
+   * rotation + scale, from in-app calibration) OR legacy corner geo. */
   function gpsToMap(lat, lng) {
     var geo = graph.config.geo;
-    if (!geo || !geo.topLeft || !geo.bottomRight) return null;
-    return {
-      x: (lng - geo.topLeft.lng) / (geo.bottomRight.lng - geo.topLeft.lng) * graph.config.width,
-      y: (lat - geo.topLeft.lat) / (geo.bottomRight.lat - geo.topLeft.lat) * graph.config.height
-    };
-  }
-
-  /* One-point calibration: the user stands at map point (x, y) with GPS
-   * (lat, lng). Combined with the map's meters-per-pixel scale and a
-   * north-up map, that fully determines the corner coordinates. */
-  function geoFromAnchor(lat, lng, x, y) {
-    var mpp = graph.config.metersPerPixel || 1;
-    var latSpan = graph.config.height * mpp / 110540;                       // ° per map height
-    var lngSpan = graph.config.width * mpp / (111320 * Math.cos(lat * Math.PI / 180));
-    var topLat = lat + (y / graph.config.height) * latSpan;
-    var topLng = lng - (x / graph.config.width) * lngSpan;
-    return {
-      comment: 'Calibrated in-app from a GPS fix at a user-tapped map point (north-up assumed).',
-      topLeft: { lat: topLat, lng: topLng },
-      bottomRight: { lat: topLat - latSpan, lng: topLng + lngSpan }
-    };
-  }
-
-  /* Two anchors far apart solve the map's real degree-per-pixel scale on
-   * each axis; one anchor only shifts the map (scale from metersPerPixel). */
-  function geoFromAnchors(anchors) {
-    if (anchors.length < 2) {
-      var a0 = anchors[0];
-      return geoFromAnchor(a0.lat, a0.lng, a0.x, a0.y);
+    if (!geo) return null;
+    if (typeof geo.c === 'number') {           // similarity transform
+      var s = toMeters(lat, lng, geo.ref);
+      return { x: geo.c * s.sx - geo.d * s.sy + geo.tx,
+               y: geo.d * s.sx + geo.c * s.sy + geo.ty };
     }
-    var a = anchors[0], b = anchors[1];
+    if (geo.topLeft && geo.bottomRight) {       // legacy north-up corners
+      return {
+        x: (lng - geo.topLeft.lng) / (geo.bottomRight.lng - geo.topLeft.lng) * graph.config.width,
+        y: (lat - geo.topLeft.lat) / (geo.bottomRight.lat - geo.topLeft.lat) * graph.config.height
+      };
+    }
+    return null;
+  }
+
+  /* Build a GPS→pixel similarity transform from anchor points.
+   *   pixel = R·meters + t,  R = [[c,-d],[d,c]]  (scale·rotation).
+   * One anchor: position only (nominal scale from metersPerPixel, north-up).
+   * Two anchors: full position + rotation + scale — the right model for a
+   * map drawn at an angle (which is why a north-up fit kept drifting). */
+  function geoFromAnchors(anchors) {
     var mpp = graph.config.metersPerPixel || 1;
-    var fallbackLat = -mpp / 110540;    // ° per px downward (lat shrinks as y grows)
-    var fallbackLng = mpp / (111320 * Math.cos(a.lat * Math.PI / 180));
-    var latPerPx = Math.abs(b.y - a.y) >= 120 ? (b.lat - a.lat) / (b.y - a.y) : fallbackLat;
-    var lngPerPx = Math.abs(b.x - a.x) >= 120 ? (b.lng - a.lng) / (b.x - a.x) : fallbackLng;
-    // sanity: right direction, within 3× of the nominal scale — else GPS noise won
-    if (!(latPerPx < 0) || Math.abs(latPerPx / fallbackLat) > 3 || Math.abs(latPerPx / fallbackLat) < 0.33) latPerPx = fallbackLat;
-    if (!(lngPerPx > 0) || Math.abs(lngPerPx / fallbackLng) > 3 || Math.abs(lngPerPx / fallbackLng) < 0.33) lngPerPx = fallbackLng;
-    var topLat = a.lat - a.y * latPerPx;
-    var topLng = a.lng - a.x * lngPerPx;
-    return {
-      comment: 'Calibrated in-app from ' + anchors.length + ' GPS reference points.',
-      topLeft: { lat: topLat, lng: topLng },
-      bottomRight: { lat: topLat + graph.config.height * latPerPx, lng: topLng + graph.config.width * lngPerPx }
-    };
+    var ref = { lat: anchors[0].lat, lng: anchors[0].lng };
+    var a = anchors[0];
+    var sa = toMeters(a.lat, a.lng, ref);       // ≈ (0,0)
+    if (anchors.length < 2) {
+      var c1 = 1 / mpp;                          // px per meter, north-up
+      return { comment: 'Calibrated from 1 GPS point (position only).',
+        ref: ref, c: c1, d: 0,
+        tx: a.x - c1 * sa.sx, ty: a.y - c1 * sa.sy };
+    }
+    var b = anchors[1];
+    var sb = toMeters(b.lat, b.lng, ref);
+    var dsx = sb.sx - sa.sx, dsy = sb.sy - sa.sy;
+    var dpx = b.x - a.x, dpy = b.y - a.y;
+    var det = dsx * dsx + dsy * dsy;
+    var c = (dsx * dpx + dsy * dpy) / det;
+    var d = (dsx * dpy - dsy * dpx) / det;
+    // sanity: solved scale within 3× of nominal, else GPS noise won → 1-point
+    var scale = Math.hypot(c, d), nominal = 1 / mpp;
+    if (!(scale > 0) || scale > nominal * 3 || scale < nominal / 3) {
+      return geoFromAnchors([anchors[0]]);
+    }
+    return { comment: 'Calibrated from 2 GPS points (position, rotation, scale).',
+      ref: ref, c: c, d: d,
+      tx: a.x - (c * sa.sx - d * sa.sy),
+      ty: a.y - (d * sa.sx + c * sa.sy) };
   }
 
   function calibrateAt(p) {
@@ -279,6 +290,8 @@
       calAnchors = best.pair;
     }
     graph.config.geo = geoFromAnchors(calAnchors);
+    var twoPoint = calAnchors.length >= 2 && typeof graph.config.geo.d === 'number' &&
+      (graph.config.geo.d !== 0 || graph.config.geo.c !== 1 / (graph.config.metersPerPixel || 1));
     try {
       localStorage.setItem(GEO_STORE_KEY, JSON.stringify({ geo: graph.config.geo, anchors: calAnchors }));
     } catch (e) { /* ignore */ }
@@ -298,11 +311,11 @@
     updatePins();
     if (following()) { hadFix = true; ensureLiveDot(x, y); }
     mv.zoomTo(x, y);
-    var calMsg = calAnchors.length >= 2
-      ? 'Calibrated with 2 reference points — map scale corrected ✓'
-      : 'Calibrated ✓ For even better accuracy, hold ⌖ again somewhere far from here and repeat.';
-    if (els.to.value) { getDirections(); showToast(calMsg); }
-    else showToast(calMsg + ' Now pick a destination.');
+    var calMsg = twoPoint
+      ? 'Calibrated with 2 points — position, rotation and scale locked in ✓ The dot should track you accurately now.'
+      : 'Point 1 set ✓ This map is drawn at an angle, so please calibrate ONE more time from a spot far from here (your tower, the lobby, the far pool): walk there, hold ⌖, and tap where you stand.';
+    if (els.to.value) { getDirections(); showToast(calMsg, false, twoPoint ? 5000 : 9000); }
+    else showToast(calMsg, false, twoPoint ? 5000 : 9000);
   }
 
   /* True when we're inside a cross-origin iframe whose permissions policy
@@ -424,7 +437,13 @@
       }
       mv.zoomTo(x, y);
       lastCenter = Date.now();
-      showToast('Following your location — the blue dot updates as you walk. Wrong spot? Tap the map where you actually are.', false, 7000);
+      // If this device has never done a 2-point calibration, the dot on this
+      // angled map will be off — teach the fix up front.
+      var calibrated = calAnchors.length >= 2;
+      showToast(calibrated
+        ? 'Following your location — the blue dot updates as you walk.'
+        : 'Following you. If the blue dot is off, HOLD the ⌖ button and tap the map where you actually are (do this twice, from two spots far apart, for accurate tracking).',
+        false, calibrated ? 5000 : 10000);
       return;
     }
     if (autoCenter && Date.now() - lastCenter >= CENTER_EVERY_MS) {
@@ -850,8 +869,8 @@
 
   function routesDiffer() {
     return route &&
-      route.routes.fastest.nodeIds.join(' ') !==
-      route.routes.shortest.nodeIds.join(' ');
+      route.routes.fastest.nodeIds.join(' ') !==
+      route.routes.shortest.nodeIds.join(' ');
   }
 
   function clearRoute() {

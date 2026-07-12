@@ -69,13 +69,18 @@ asks the user to tap the map where they actually are; when it lands in-bounds
 the user has ~15 s to tap the true spot on empty map; and **holding the ⌖
 button ~0.6 s starts recalibration at any time**. One anchor point plus
 `metersPerPixel` and the north-up assumption fully determine both corners.
-A **second anchor** taken far from the first (>120 px on an axis) solves the
-map's real degree-per-pixel scale on that axis; implausible solves (wrong
-direction or >3× off nominal) fall back to the nominal scale, so a bad tap
-can't wreck the mapping. Up to 2 anchors are kept (the farthest-apart pair).
+Calibration solves a **similarity transform** (position + rotation + uniform
+scale) mapping GPS→pixels, stored as `config.geo = { ref:{lat,lng}, c, d, tx,
+ty }` where `pixel = [[c,-d],[d,c]]·metersFromRef + [tx,ty]`. One anchor gives
+position only (nominal scale, north-up). **A second anchor far from the first
+solves rotation and scale** — essential here because the resort map is drawn
+at an angle, so a north-up model always drifted no matter how it was shifted.
+Implausible solves (scale >3× or <1/3 of nominal) fall back to the 1-point fit
+so a bad tap can't wreck the mapping; the farthest-apart pair of anchors is
+kept. Legacy corner-format `geo` (`topLeft`/`bottomRight`) is still read.
 Results persist to the device (`localStorage`, overriding shipped values) and
-PUT back to `/api/graph` when the server is reachable. The live dot also
-shows a translucent GPS-accuracy circle sized in real map meters.
+PUT back to `/api/graph` when the server is reachable. The live dot shows a
+translucent GPS-accuracy circle sized in real map meters.
 
 ## API contract
 
