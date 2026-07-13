@@ -436,6 +436,8 @@
   function onFix(pos) {
     var lat = pos.coords.latitude, lng = pos.coords.longitude;
     lastFix = { lat: lat, lng: lng, accuracy: pos.coords.accuracy };
+    var accM = typeof pos.coords.accuracy === 'number' ? pos.coords.accuracy : 99;
+    if (accM <= 35) feedAutoFit(lat, lng);   // only feed decent fixes to the tuner
     if (calibrateOnFix) {      // user held ⌖ before the first fix arrived
       calibrateOnFix = false;
       pendingCal = { lat: lat, lng: lng, soft: false };
@@ -618,6 +620,164 @@
     recording = true;
     updateRecordUi();
     showToast('Recording your walk — the red dashed trail follows you. Tap Stop when you finish the path.', false, 6000);
+  }
+
+  /* ---------------- walk-to-calibrate (automatic tuning) ----------------
+   * People walk on paths. So while tracking, the app quietly fits the recent
+   * GPS trail to the walkable network and nudges the calibration (position,
+   * rotation, scale) to make the trail lie on the paths. No gestures needed;
+   * manual tap-calibration stays as the coarse bootstrap / override. */
+  var rawTrail = [];          // recent raw fixes [{lat, lng}]
+  var lastAutoFit = 0;
+  var fixesSinceFit = 0;
+  var AUTOFIT_MIN_PTS = 30;
+  var AUTOFIT_EVERY_MS = 45000;
+
+  /* Ensure config.geo is in similarity form (convert legacy corner format). */
+  function geoAsSimilarity() {
+    var geo = graph.config.geo;
+    if (!geo) return null;
+    if (typeof geo.c === 'number') return geo;
+    if (!geo.topLeft || !geo.bottomRight) return null;
+    var ref = { lat: geo.topLeft.lat, lng: geo.topLeft.lng };
+    var cx = graph.config.width /
+      ((geo.bottomRight.lng - geo.topLeft.lng) * 111320 * Math.cos(ref.lat * Math.PI / 180));
+    var cy = graph.config.height / ((geo.topLeft.lat - geo.bottomRight.lat) * 110540);
+    return { ref: ref, c: (cx + cy) / 2, d: 0, tx: 0, ty: 0,
+             comment: 'converted from corner calibration' };
+  }
+
+  /* Walkable segments near a bounding box, as flat arrays for fast distance. */
+  function nearbySegments(minX, minY, maxX, maxY) {
+    var segs = [];
+    var pad = 120;
+    var byId = nodesById;
+    for (var i = 0; i < graph.edges.length; i++) {
+      var e = graph.edges[i];
+      if (e.pathType === 'gondola' || e.pathType === 'connector') continue;
+      var a = byId[e.from], b = byId[e.to];
+      if (!a || !b) continue;
+      if (Math.max(a.x, b.x) < minX - pad || Math.min(a.x, b.x) > maxX + pad ||
+          Math.max(a.y, b.y) < minY - pad || Math.min(a.y, b.y) > maxY + pad) continue;
+      segs.push(a.x, a.y, b.x, b.y);
+    }
+    return segs;
+  }
+
+  function distToSegs(x, y, segs) {
+    var best = 1e9;
+    for (var i = 0; i < segs.length; i += 4) {
+      var ax = segs[i], ay = segs[i + 1], dx = segs[i + 2] - ax, dy = segs[i + 3] - ay;
+      var L2 = dx * dx + dy * dy;
+      var t = L2 ? ((x - ax) * dx + (y - ay) * dy) / L2 : 0;
+      if (t < 0) t = 0; else if (t > 1) t = 1;
+      var qx = ax + t * dx - x, qy = ay + t * dy - y;
+      var d2 = qx * qx + qy * qy;
+      if (d2 < best) best = d2;
+    }
+    return Math.sqrt(best);
+  }
+
+  function autoFitCalibration() {
+    var geo = geoAsSimilarity();
+    if (!geo || rawTrail.length < AUTOFIT_MIN_PTS) return;
+    // base-transform the trail with the CURRENT calibration
+    var pts = rawTrail.slice(-90).map(function (p) {
+      var s = toMeters(p.lat, p.lng, geo.ref);
+      return { x: geo.c * s.sx - geo.d * s.sy + geo.tx,
+               y: geo.d * s.sx + geo.c * s.sy + geo.ty };
+    });
+    // need real spatial extent, else rotation/scale are unobservable
+    var minX = 1e9, minY = 1e9, maxX = -1e9, maxY = -1e9, gx = 0, gy = 0;
+    for (var i = 0; i < pts.length; i++) {
+      var p = pts[i];
+      if (p.x < minX) minX = p.x; if (p.x > maxX) maxX = p.x;
+      if (p.y < minY) minY = p.y; if (p.y > maxY) maxY = p.y;
+      gx += p.x; gy += p.y;
+    }
+    if (Math.hypot(maxX - minX, maxY - minY) < 80) return;
+    gx /= pts.length; gy /= pts.length;
+    var segs = nearbySegments(minX, minY, maxX, maxY);
+    if (segs.length < 8) return;
+
+    var CAP = 30;   // px, robust loss cap
+    function cost(th, s, tx, ty) {
+      var cs = Math.cos(th) * s, sn = Math.sin(th) * s, sum = 0;
+      for (var i = 0; i < pts.length; i++) {
+        var vx = pts[i].x - gx, vy = pts[i].y - gy;
+        var x = gx + cs * vx - sn * vy + tx;
+        var y = gy + sn * vx + cs * vy + ty;
+        var d = distToSegs(x, y, segs);
+        sum += d > CAP ? CAP : d;
+      }
+      return sum / pts.length;
+    }
+
+    var base = cost(0, 1, 0, 0);
+    var th = 0, s = 1, tx = 0, ty = 0, cur = base;
+    var LEVELS = [[24, 0.052, 0.06], [12, 0.026, 0.03], [6, 0.013, 0.015], [3, 0.007, 0.008]];
+    for (var L = 0; L < LEVELS.length; L++) {
+      var dT = LEVELS[L][0], dTh = LEVELS[L][1], dS = LEVELS[L][2];
+      for (var pass = 0; pass < 2; pass++) {
+        var cands = [
+          [th, s, tx + dT, ty], [th, s, tx - dT, ty],
+          [th, s, tx, ty + dT], [th, s, tx, ty - dT],
+          [th + dTh, s, tx, ty], [th - dTh, s, tx, ty],
+          [th, s * (1 + dS), tx, ty], [th, s * (1 - dS), tx, ty]
+        ];
+        for (var c2 = 0; c2 < cands.length; c2++) {
+          var cd = cands[c2];
+          // keep corrections modest — this is a tune-up, not a re-bootstrap
+          if (Math.abs(cd[0]) > 0.14 || cd[1] < 0.9 || cd[1] > 1.11 ||
+              Math.abs(cd[2]) > 70 || Math.abs(cd[3]) > 70) continue;
+          var v = cost(cd[0], cd[1], cd[2], cd[3]);
+          if (v < cur) { cur = v; th = cd[0]; s = cd[1]; tx = cd[2]; ty = cd[3]; }
+        }
+      }
+    }
+
+    // only adopt clear improvements that land the trail ON the paths
+    if (!(cur < base * 0.8 && cur < 14)) return;
+    var inliers = 0, cs2 = Math.cos(th) * s, sn2 = Math.sin(th) * s;
+    for (var k = 0; k < pts.length; k++) {
+      var vx2 = pts[k].x - gx, vy2 = pts[k].y - gy;
+      if (distToSegs(gx + cs2 * vx2 - sn2 * vy2 + tx, gy + sn2 * vx2 + cs2 * vy2 + ty, segs) <= 25) inliers++;
+    }
+    if (inliers / pts.length < 0.7) return;
+
+    // compose: new = P ∘ T0 (both similarities), P applied around (gx, gy)
+    var C = geo.c, D = geo.d;
+    var nc = cs2 * C - sn2 * D, nd = sn2 * C + cs2 * D;
+    var btx = gx - (cs2 * gx - sn2 * gy) + tx + (cs2 * geo.tx - sn2 * geo.ty);
+    var bty = gy - (sn2 * gx + cs2 * gy) + ty + (sn2 * geo.tx + cs2 * geo.ty);
+    graph.config.geo = { ref: geo.ref, c: nc, d: nd, tx: btx, ty: bty,
+      comment: 'auto-tuned by matching a walk to the path network' };
+    try {
+      localStorage.setItem(GEO_STORE_KEY, JSON.stringify({
+        geo: graph.config.geo, anchors: calAnchors,
+        mapVersion: graph.config.mapVersion || 1
+      }));
+    } catch (e) { /* ignore */ }
+    if (base - cur > 3) {
+      showToast('Calibration auto-tuned to your walk ✓ (trail matched to the paths)', false, 4000);
+    }
+  }
+
+  function feedAutoFit(lat, lng) {
+    var last = rawTrail[rawTrail.length - 1];
+    if (last) {
+      var m = toMeters(lat, lng, last);
+      if (Math.hypot(m.sx, m.sy) < 1.5) return;   // standing still
+    }
+    rawTrail.push({ lat: lat, lng: lng });
+    if (rawTrail.length > 150) rawTrail.shift();
+    fixesSinceFit++;
+    if (rawTrail.length >= AUTOFIT_MIN_PTS && fixesSinceFit >= 25 &&
+        Date.now() - lastAutoFit > AUTOFIT_EVERY_MS) {
+      lastAutoFit = Date.now();
+      fixesSinceFit = 0;
+      setTimeout(autoFitCalibration, 30);   // off the GPS callback path
+    }
   }
 
   /* Hold-⌖ entry point: recalibrate from the freshest GPS fix. */

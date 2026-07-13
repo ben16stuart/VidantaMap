@@ -82,6 +82,19 @@ Results persist to the device (`localStorage`, overriding shipped values) and
 PUT back to `/api/graph` when the server is reachable. The live dot shows a
 translucent GPS-accuracy circle sized in real map meters.
 
+**Walk-to-calibrate (automatic):** guests walk on paths, so a GPS trail must
+lie on the walkable network — the app exploits that to tune calibration with
+zero user effort. Good fixes (accuracy ≤35 m, ≥1.5 m apart) accumulate into a
+trail; once ≥30 points exist (re-run at most every 45 s) a coarse-to-fine
+coordinate descent perturbs rotation/scale/translation about the trail
+centroid to minimize a robust mean distance from trail points to nearby
+walkable segments (gondola/connector excluded). Corrections are capped
+(|Δθ| ≤ 8°, scale ×0.9–1.11, |Δt| ≤ 70 px) and only accepted when the fit
+improves ≥20%, lands under 14 px mean, and ≥70% of points end within 25 px of
+a path — so noise can never make things worse. Accepted fits compose into the
+similarity transform and persist to `localStorage`. The manual flows above
+remain the bootstrap and override.
+
 ## API contract
 
 - `GET /api/graph` → the full graph JSON (as above).
