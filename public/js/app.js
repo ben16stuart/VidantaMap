@@ -321,6 +321,11 @@
       calAnchors = best.pair;
     }
     graph.config.geo = geoFromAnchors(calAnchors);
+    // a manual fix supersedes whatever the auto-tuner was anchored to —
+    // re-anchor it here too, and drop the stale trail so the next auto-fit
+    // builds fresh evidence instead of nudging away from the manual fix
+    baselineGeo = geoAsSimilarity();
+    rawTrail = [];
     var twoPoint = calAnchors.length >= 2 && typeof graph.config.geo.d === 'number' &&
       (graph.config.geo.d !== 0 || graph.config.geo.c !== 1 / (graph.config.metersPerPixel || 1));
     try {
@@ -626,12 +631,24 @@
    * People walk on paths. So while tracking, the app quietly fits the recent
    * GPS trail to the walkable network and nudges the calibration (position,
    * rotation, scale) to make the trail lie on the paths. No gestures needed;
-   * manual tap-calibration stays as the coarse bootstrap / override. */
+   * manual tap-calibration stays as the coarse bootstrap / override.
+   *
+   * Every candidate fit is computed from `baselineGeo` — the calibration in
+   * place when the page loaded — never from the live (possibly already
+   * auto-tuned) geo. A bad fit can otherwise become the input to the next
+   * fit, and small errors compound every cycle into a runaway drift (this
+   * happened in the field: a 100 ft walk drifted into a huge phantom loop
+   * because each ~45 s cycle "improved" on the previous cycle's mistake).
+   * Re-anchoring to a fixed baseline every time means a bad cycle is always
+   * overwritten by the next, better-informed one instead of compounding. */
   var rawTrail = [];          // recent raw fixes [{lat, lng}]
+  var baselineGeo = null;     // fixed reference geo for this page load — never mutated
   var lastAutoFit = 0;
   var fixesSinceFit = 0;
+  var speedRejectStreak = 0;
   var AUTOFIT_MIN_PTS = 30;
   var AUTOFIT_EVERY_MS = 45000;
+  var MAX_WALK_SPEED_MPS = 3.3;   // brisk-walk ceiling; faster GPS "movement" is noise, not steps
 
   /* Ensure config.geo is in similarity form (convert legacy corner format). */
   function geoAsSimilarity() {
@@ -679,9 +696,11 @@
   }
 
   function autoFitCalibration() {
-    var geo = geoAsSimilarity();
+    if (!baselineGeo) baselineGeo = geoAsSimilarity();
+    var geo = baselineGeo;
     if (!geo || rawTrail.length < AUTOFIT_MIN_PTS) return;
-    // base-transform the trail with the CURRENT calibration
+    // base-transform the trail with the FIXED session baseline (not the live geo —
+    // see the note above on why compounding onto a moving target is unsafe)
     var pts = rawTrail.slice(-90).map(function (p) {
       var s = toMeters(p.lat, p.lng, geo.ref);
       return { x: geo.c * s.sx - geo.d * s.sy + geo.tx,
@@ -699,6 +718,21 @@
     gx /= pts.length; gy /= pts.length;
     var segs = nearbySegments(minX, minY, maxX, maxY);
     if (segs.length < 8) return;
+
+    // a nearly-straight walk can't observably fix rotation/scale — any angle
+    // roughly "explains" a short straight line, so guessing one is a coin
+    // flip that can point the whole map the wrong way. Only let rotation and
+    // scale move when the trail actually bends; otherwise nudge position only.
+    var first = pts[0], last = pts[pts.length - 1];
+    var ux = last.x - first.x, uy = last.y - first.y;
+    var ulen = Math.hypot(ux, uy) || 1;
+    ux /= ulen; uy /= ulen;
+    var maxBend = 0;
+    for (var bi = 0; bi < pts.length; bi++) {
+      var bend = Math.abs((pts[bi].x - first.x) * uy - (pts[bi].y - first.y) * ux);
+      if (bend > maxBend) maxBend = bend;
+    }
+    var allowRotateScale = maxBend > 18;
 
     var CAP = 30;   // px, robust loss cap
     function cost(th, s, tx, ty) {
@@ -721,10 +755,14 @@
       for (var pass = 0; pass < 2; pass++) {
         var cands = [
           [th, s, tx + dT, ty], [th, s, tx - dT, ty],
-          [th, s, tx, ty + dT], [th, s, tx, ty - dT],
-          [th + dTh, s, tx, ty], [th - dTh, s, tx, ty],
-          [th, s * (1 + dS), tx, ty], [th, s * (1 - dS), tx, ty]
+          [th, s, tx, ty + dT], [th, s, tx, ty - dT]
         ];
+        if (allowRotateScale) {
+          cands.push(
+            [th + dTh, s, tx, ty], [th - dTh, s, tx, ty],
+            [th, s * (1 + dS), tx, ty], [th, s * (1 - dS), tx, ty]
+          );
+        }
         for (var c2 = 0; c2 < cands.length; c2++) {
           var cd = cands[c2];
           // keep corrections modest — this is a tune-up, not a re-bootstrap
@@ -764,12 +802,27 @@
   }
 
   function feedAutoFit(lat, lng) {
+    var now = Date.now();
     var last = rawTrail[rawTrail.length - 1];
     if (last) {
       var m = toMeters(lat, lng, last);
-      if (Math.hypot(m.sx, m.sy) < 1.5) return;   // standing still
+      var dist = Math.hypot(m.sx, m.sy);
+      if (dist < 1.5) return;   // standing still
+      // GPS multipath/reacquisition glitches can "teleport" a fix tens of
+      // meters in a couple of seconds — much faster than anyone walks.
+      // Drop those outright rather than feeding them into the trail; a
+      // fitter can't tell a real turn from a bad fix, but a speed check can.
+      var dt = (now - last.t) / 1000;
+      if (dt > 0 && dist / dt > MAX_WALK_SPEED_MPS) {
+        // a real mode change (e.g. boarding a shuttle) would also blow this
+        // gate on every fix — don't get stuck rejecting forever, just start
+        // a fresh trail from here after a few consecutive rejections
+        if (++speedRejectStreak >= 4) { rawTrail = []; speedRejectStreak = 0; }
+        return;
+      }
     }
-    rawTrail.push({ lat: lat, lng: lng });
+    speedRejectStreak = 0;
+    rawTrail.push({ lat: lat, lng: lng, t: now });
     if (rawTrail.length > 150) rawTrail.shift();
     fixesSinceFit++;
     if (rawTrail.length >= AUTOFIT_MIN_PTS && fixesSinceFit >= 25 &&

@@ -91,9 +91,22 @@ centroid to minimize a robust mean distance from trail points to nearby
 walkable segments (gondola/connector excluded). Corrections are capped
 (|Δθ| ≤ 8°, scale ×0.9–1.11, |Δt| ≤ 70 px) and only accepted when the fit
 improves ≥20%, lands under 14 px mean, and ≥70% of points end within 25 px of
-a path — so noise can never make things worse. Accepted fits compose into the
-similarity transform and persist to `localStorage`. The manual flows above
-remain the bootstrap and override.
+a path. The manual flows above remain the bootstrap and override.
+
+Two more guards, added after a field failure (a 100 ft walk drifted into a
+huge phantom loop): every candidate fit is computed from a **fixed baseline**
+captured once per page load, never from the live geo — otherwise a bad cycle
+becomes the next cycle's input and small errors compound every ~45s into a
+runaway drift (confirmed: the loop's jump points landed almost exactly on
+45s boundaries). And GPS fixes implying >3.3 m/s of movement (multipath/
+reacquisition teleports — real ones measured at 20-40 m/s in the field) are
+dropped before they ever reach the trail buffer, with a short reject-streak
+reset in case of a genuine mode change (e.g. boarding a shuttle). A trail
+that's nearly a straight line also can't observably fix rotation/scale (any
+angle roughly "explains" a short line), so those stay locked to baseline and
+only position nudges — rotation/scale only move when the trail actually
+bends. A manual recalibration re-anchors the baseline and clears the trail,
+so it can't be nudged back by stale auto-fit evidence.
 
 ## API contract
 
