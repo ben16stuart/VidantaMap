@@ -107,7 +107,9 @@
 
     _setView(x, y, w, h) {
       // clamp zoom-in level and keep the map roughly in frame
-      const minW = this.mapW / 12;
+      // (absolute floor, not map-relative: big stitched canvases must still
+      // allow zooming close enough to read the resort core)
+      const minW = Math.min(100, this.mapW / 12);
       if (w < minW) { const c = x + w / 2, cy = y + h / 2, ratio = minW / w; w = minW; h = h * ratio; x = c - w / 2; y = cy - h / 2; }
       const maxW = this.mapW * 2.5;
       if (w > maxW) { const c = x + w / 2, cy = y + h / 2, ratio = maxW / w; w = maxW; h = h * ratio; x = c - w / 2; y = cy - h / 2; }

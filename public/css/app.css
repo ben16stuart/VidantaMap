@@ -240,6 +240,37 @@ html, body {
 #loc-btn:active { transform: translateY(1px); }
 #loc-btn:disabled { color: var(--muted); cursor: default; }
 
+#record-btn {
+  width: 100%;
+  margin-top: 6px;
+  padding: 9px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #ffffff;
+  color: #b91c1c;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+}
+#record-btn.recording {
+  background: #b91c1c;
+  border-color: #b91c1c;
+  color: #fff;
+}
+#record-btn:active { transform: translateY(1px); }
+
+/* recorded GPS trail on the map */
+.track-line {
+  fill: none;
+  stroke: #e11d48;
+  stroke-width: 3;
+  stroke-dasharray: 7 5;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+  pointer-events: none;
+  opacity: 0.9;
+}
+
 #go-btn {
   width: 100%;
   margin-top: 10px;

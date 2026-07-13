@@ -24,12 +24,17 @@
           <option value="paved">paved</option>
           <option value="trail">trail</option>
           <option value="stairs">stairs</option>
+          <option value="shuttle">shuttle</option>
+          <option value="gondola">gondola</option>
         </select>
       </label>
     </div>
 
     <div class="topbar-right">
       <span id="dirtyBadge" hidden>Unsaved changes</span>
+      <label id="trackBtn" class="track-btn" title="Overlay a GPS track recorded in the guest app">
+        Load track<input id="trackFile" type="file" accept=".json,application/json" hidden>
+      </label>
       <button type="button" id="reloadBtn">Reload</button>
       <button type="button" id="saveBtn" class="primary">Save</button>
     </div>
@@ -43,10 +48,13 @@
         <div class="legend-row"><span class="swatch line paved"></span>paved</div>
         <div class="legend-row"><span class="swatch line trail"></span>trail</div>
         <div class="legend-row"><span class="swatch line stairs"></span>stairs</div>
+        <div class="legend-row"><span class="swatch line shuttle"></span>shuttle</div>
+        <div class="legend-row"><span class="swatch line gondola"></span>gondola</div>
         <div class="legend-title">Nodes</div>
         <div class="legend-row"><span class="swatch dot hotel"></span>hotel</div>
         <div class="legend-row"><span class="swatch dot restaurant"></span>restaurant</div>
         <div class="legend-row"><span class="swatch dot bar"></span>bar</div>
+        <div class="legend-row"><span class="swatch dot station"></span>station</div>
         <div class="legend-row"><span class="swatch dot pool"></span>pool</div>
         <div class="legend-row"><span class="swatch dot amenity"></span>amenity</div>
         <div class="legend-row"><span class="swatch dot junction"></span>junction</div>
@@ -78,6 +86,7 @@
             <option value="bar">bar</option>
             <option value="pool">pool</option>
             <option value="amenity">amenity</option>
+            <option value="station">station</option>
             <option value="junction">junction</option>
           </select>
         </label>

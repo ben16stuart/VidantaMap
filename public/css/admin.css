@@ -325,6 +325,23 @@ button.danger:hover { background: #fee2e2; }
 .swatch.hotel { background: var(--c-hotel); }
 .swatch.restaurant { background: var(--c-restaurant); }
 .swatch.bar { background: #c026d3; }
+.swatch.station { background: #b45309; }
+.swatch.line.shuttle { background: #f59e0b; }
+.swatch.line.gondola { background: #db2777; }
+
+.track-btn {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border: 1px solid var(--line, #d8dee4);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+  font-weight: 600;
+  color: #b91c1c;
+  cursor: pointer;
+}
+.track-btn:hover { background: #fef2f2; }
 .swatch.pool { background: var(--c-pool); }
 .swatch.amenity { background: var(--c-amenity); }
 .swatch.junction { background: var(--c-junction); width: 7px; height: 7px; }

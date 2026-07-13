@@ -12,7 +12,10 @@
     boardwalk: '#c2703d',
     paved: '#5b6b7d',
     trail: '#3e8e4f',
-    stairs: '#b04ac2'
+    stairs: '#b04ac2',
+    shuttle: '#f59e0b',
+    gondola: '#db2777',
+    connector: '#94a3b8'
   };
   var NODE_COLORS = {
     hotel: '#2563eb',
@@ -20,6 +23,7 @@
     bar: '#c026d3',
     pool: '#0891b2',
     amenity: '#7c3aed',
+    station: '#b45309',
     junction: '#8a8f98'
   };
   var DEFAULT_NODE_COLOR = '#16a34a'; // unknown types
@@ -659,9 +663,17 @@
         mv = new window.MapView(mapDiv, graph.config);
         buildOverlaySkeleton();
         mv.onClick(onMapClick);
-        mv.onViewChanged(applySizes);
+        // big graphs: coalesce the per-node restyle to one per animation frame
+        var sizesQueued = false;
+        mv.onViewChanged(function () {
+          if (sizesQueued) return;
+          sizesQueued = true;
+          requestAnimationFrame(function () { sizesQueued = false; applySizes(); });
+        });
         bindMapExtras();
         applyCursor();
+        var hv = graph.config.homeView;
+        if (hv) mv.fitBounds(hv.x, hv.y, hv.x + hv.w, hv.y + hv.h, 0);
       }
       clearDirty();
       renderAll();
@@ -779,6 +791,39 @@
 
   $('saveBtn').addEventListener('click', save);
   $('reloadBtn').addEventListener('click', reload);
+
+  /* ---------- GPS track overlay (recorded in the guest app) ---------- */
+
+  var trackLine = null;
+  $('trackFile').addEventListener('change', function () {
+    var f = this.files && this.files[0];
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onload = function () {
+      try {
+        var data = JSON.parse(reader.result);
+        var pts = (data.points || data).map(function (p) { return p.x + ',' + p.y; });
+        if (!pts.length) { toast('Track file has no points', 'err'); return; }
+        if (trackLine && trackLine.parentNode) trackLine.parentNode.removeChild(trackLine);
+        trackLine = el('polyline', {
+          points: pts.join(' '),
+          fill: 'none', stroke: '#e11d48', 'stroke-width': 3,
+          'stroke-dasharray': '7 5', 'stroke-linecap': 'round',
+          'vector-effect': 'non-scaling-stroke', 'pointer-events': 'none', opacity: 0.9
+        });
+        mv.overlay.appendChild(trackLine);
+        var xs = (data.points || data).map(function (p) { return p.x; });
+        var ys = (data.points || data).map(function (p) { return p.y; });
+        mv.fitBounds(Math.min.apply(null, xs), Math.min.apply(null, ys),
+                     Math.max.apply(null, xs), Math.max.apply(null, ys), 80);
+        toast('Track loaded (' + pts.length + ' points) — draw paths over it, then Save', 'ok');
+      } catch (e) {
+        toast('Could not read track file: ' + e.message, 'err');
+      }
+    };
+    reader.readAsText(f);
+    this.value = '';
+  });
 
   document.addEventListener('keydown', function (e) {
     if (e.key !== 'Escape') return;

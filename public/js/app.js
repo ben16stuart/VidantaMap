@@ -34,6 +34,7 @@
     swap: $('swap-btn'),
     go: $('go-btn'),
     loc: $('loc-btn'),
+    record: $('record-btn'),
     calibrate: $('calibrate-btn'),
     topcard: $('topcard'),
     topFull: $('topcard-full'),
@@ -459,6 +460,7 @@
     var first = !hadFix;
     hadFix = true;
     ensureLiveDot(x, y, pos.coords.accuracy);
+    recordFix(x, y);
 
     // live navigation drives its own line/steps/banner from each fix
     if (navMode) updateNavigation(x, y);
@@ -535,6 +537,87 @@
       timeout: 15000
     });
     updateFollowUi();
+  }
+
+  /* ---------------- GPS track recorder (survey mode) ----------------
+   * Records your walk as calibrated map coordinates. The exported JSON can
+   * be overlaid in the admin editor ("Load track") to correct the path
+   * network with ground truth instead of map-artwork guesses. */
+  var TRACK_STORE_KEY = 'vidantamap-track';
+  var recording = false;
+  var trail = [];
+  var trackLine = null;
+
+  function drawTrack() {
+    if (!trail.length) return;
+    if (!trackLine) {
+      trackLine = MapView.el('polyline', { 'class': 'track-line' });
+      mv.overlay.appendChild(trackLine);
+    }
+    trackLine.setAttribute('points',
+      trail.map(function (p) { return p.x + ',' + p.y; }).join(' '));
+  }
+
+  function updateRecordUi() {
+    els.record.classList.toggle('recording', recording);
+    els.record.textContent = recording
+      ? '■ Stop recording (' + trail.length + ' pts)'
+      : '● Record my walk';
+  }
+
+  function recordFix(x, y) {
+    if (!recording) return;
+    var last = trail[trail.length - 1];
+    if (last && Math.hypot(x - last.x, y - last.y) < 2) return; // standing still
+    trail.push({ x: x, y: y, t: Date.now() });
+    drawTrack();
+    updateRecordUi();
+  }
+
+  function exportTrack() {
+    var payload = JSON.stringify({
+      mapVersion: graph.config.mapVersion || 1,
+      recordedAt: new Date().toISOString(),
+      points: trail
+    });
+    try { localStorage.setItem(TRACK_STORE_KEY, payload); } catch (e) { /* ignore */ }
+    var file;
+    try { file = new File([payload], 'walk-track.json', { type: 'application/json' }); } catch (e) { /* ignore */ }
+    if (file && navigator.canShare && navigator.canShare({ files: [file] })) {
+      navigator.share({ files: [file], title: 'VidantaMap walk track' })
+        .then(function () { showToast('Track shared ✓ (' + trail.length + ' points)'); })
+        .catch(function () { exportViaClipboard(payload); });
+    } else {
+      exportViaClipboard(payload);
+    }
+  }
+  function exportViaClipboard(payload) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(payload).then(function () {
+        showToast('Track copied to clipboard ✓ (' + trail.length + ' points) — paste it into a message or save as walk-track.json for the admin editor.', false, 8000);
+      }).catch(function () {
+        showToast('Track saved on this device (' + trail.length + ' points).', false, 6000);
+      });
+    } else {
+      showToast('Track saved on this device (' + trail.length + ' points).', false, 6000);
+    }
+  }
+
+  function toggleRecording() {
+    if (recording) {
+      recording = false;
+      updateRecordUi();
+      if (trail.length >= 2) exportTrack();
+      else showToast('Recording stopped — too few points to export. Walk a bit longer next time.', true);
+      return;
+    }
+    if (!following()) useMyLocation();
+    if (!following()) return;   // GPS refused; useMyLocation explained why
+    trail = [];
+    if (trackLine && trackLine.parentNode) { trackLine.parentNode.removeChild(trackLine); trackLine = null; }
+    recording = true;
+    updateRecordUi();
+    showToast('Recording your walk — the red dashed trail follows you. Tap Stop when you finish the path.', false, 6000);
   }
 
   /* Hold-⌖ entry point: recalibrate from the freshest GPS fix. */
@@ -797,6 +880,16 @@
   function wireUi() {
     els.go.addEventListener('click', getDirections);
     els.loc.addEventListener('click', useMyLocation);
+    els.record.addEventListener('click', toggleRecording);
+    // restore the last recorded trail (same map version) so it can be reviewed
+    try {
+      var savedTrack = JSON.parse(localStorage.getItem(TRACK_STORE_KEY) || 'null');
+      if (savedTrack && savedTrack.points && savedTrack.points.length > 1 &&
+          (savedTrack.mapVersion || 1) === (graph.config.mapVersion || 1)) {
+        trail = savedTrack.points;
+        drawTrack();
+      }
+    } catch (e) { /* ignore */ }
     // hold ⌖ ~0.6s → recalibrate: tap the map where you actually are
     var fabHold = null, fabHeld = false;
     els.fab.addEventListener('pointerdown', function () {
